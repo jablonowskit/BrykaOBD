@@ -41,6 +41,7 @@ Przy każdym pushu / PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
 ## Dokumentacja
 
 - [__README/001_plan.md](__README/001_plan.md) — plan, architektura, znane problemy
+- [__README/002_obd_references.md](__README/002_obd_references.md) — wzorce OSS i źródła OBD/ELM
 - [AGENTS.md](AGENTS.md) — wskazówki dla agentów LLM
 
 ## Moduły
