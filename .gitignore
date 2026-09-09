@@ -27,3 +27,4 @@ captures/
 *.dmg
 *.deb
 *.rpm
+/data/
