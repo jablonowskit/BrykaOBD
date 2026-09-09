@@ -9,26 +9,39 @@ class Elm327Session(
     val diag: ObdDiagLog = ObdDiagLog(),
 ) {
     private var initialized = false
+    private var address = ObdAddress.Functional
 
     suspend fun initialize() {
         diag.info("SESSION", "ELM init start (ATZ…ATSP0)")
         val atCommands = listOf("ATZ", "ATE0", "ATL0", "ATS0", "ATH0", "ATSP0")
         for (cmd in atCommands) {
-            transport.write("$cmd\r")
-            val reply = transport.readUntilPrompt()
-            val err = ElmParser.isErrorResponse(reply)
-            if (err != null) {
-                diag.warn("AT", "$cmd → flagged: $err (raw logged as RX)")
-            } else {
-                diag.info("AT", "$cmd → OK / banner")
-            }
+            sendAt(cmd)
         }
+        address = ObdAddress.Functional
         initialized = true
         diag.info("SESSION", "ELM init done")
     }
 
+    suspend fun setAddress(target: ObdAddress) {
+        ensureInit()
+        if (address == target) return
+        when (target) {
+            ObdAddress.EcmPhysical -> {
+                // Car Scanner / Torque GM DPF PIDs use header 7E0 (ECM physical).
+                sendAt("ATSH7E0")
+                diag.info("AT", "Address → ECM physical ATSH7E0 (Mode 22)")
+            }
+            ObdAddress.Functional -> {
+                sendAt("ATSH7DF")
+                diag.info("AT", "Address → functional ATSH7DF (Mode 01)")
+            }
+        }
+        address = target
+    }
+
     suspend fun readPid(pid: PidDefinition): PidReading {
         ensureInit()
+        setAddress(ObdAddress.Functional)
         transport.write("${pid.mode01Request()}\r")
         val reply = transport.readUntilPrompt()
         val err = ElmParser.isErrorResponse(reply)
@@ -53,8 +66,12 @@ class Elm327Session(
     suspend fun readDashboard(pids: List<PidDefinition> = StandardPids.dashboard): List<PidReading> =
         pids.map { readPid(it) }
 
-    suspend fun readExtPid(pid: ExtPidDefinition): ExtPidReading {
+    suspend fun readExtPid(
+        pid: ExtPidDefinition,
+        address: ObdAddress = defaultAddressFor(pid),
+    ): ExtPidReading {
         ensureInit()
+        setAddress(address)
         transport.write("${pid.request}\r")
         val reply = transport.readUntilPrompt()
         val err = ElmParser.isErrorResponse(reply)
@@ -80,11 +97,19 @@ class Elm327Session(
         return ExtPidReading(pid, value = value)
     }
 
-    suspend fun readExtList(pids: List<ExtPidDefinition>): List<ExtPidReading> =
-        pids.map { readExtPid(it) }
+    suspend fun readExtList(
+        pids: List<ExtPidDefinition>,
+        address: ObdAddress? = null,
+    ): List<ExtPidReading> {
+        val target = address ?: pids.firstOrNull()?.let { defaultAddressFor(it) } ?: ObdAddress.Functional
+        ensureInit()
+        setAddress(target)
+        return pids.map { readExtPid(it, target) }
+    }
 
     suspend fun readStoredDtcs(): DtcReadResult {
         ensureInit()
+        setAddress(ObdAddress.Functional)
         transport.write("03\r")
         val reply = transport.readUntilPrompt()
         val err = ElmParser.isErrorResponse(reply)
@@ -103,6 +128,7 @@ class Elm327Session(
 
     suspend fun clearStoredDtcs(): DtcReadResult {
         ensureInit()
+        setAddress(ObdAddress.Functional)
         transport.write("04\r")
         val reply = transport.readUntilPrompt()
         if (!ElmParser.isMode04Success(reply)) {
@@ -118,9 +144,24 @@ class Elm327Session(
         diag.info("SESSION", "Session close")
         transport.close()
         initialized = false
+        address = ObdAddress.Functional
     }
+
+    private fun defaultAddressFor(pid: ExtPidDefinition): ObdAddress =
+        if (pid.responseService == 0x62) ObdAddress.EcmPhysical else ObdAddress.Functional
 
     private suspend fun ensureInit() {
         if (!initialized) initialize()
+    }
+
+    private suspend fun sendAt(cmd: String) {
+        transport.write("$cmd\r")
+        val reply = transport.readUntilPrompt()
+        val err = ElmParser.isErrorResponse(reply)
+        if (err != null) {
+            diag.warn("AT", "$cmd → flagged: $err (raw logged as RX)")
+        } else {
+            diag.info("AT", "$cmd → OK / banner")
+        }
     }
 }

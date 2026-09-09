@@ -16,10 +16,16 @@ The UI SHALL present two primary live-data tabs: **Zegary** (gauge metrics) and 
 
 ### Requirement: Mode 22 manufacturer DID reads
 
-The session SHALL send Mode 22 requests as `22` + four hex DID digits and decode positive responses starting with `62` + DID bytes. Missing DIDs (`NO DATA`) MUST surface as a per-metric error and MUST NOT abort the rest of the poll cycle. Raw RX MUST remain available via the existing diag log / archive path for Aveo discovery.
+The session SHALL send Mode 22 requests as `22` + four hex DID digits and decode positive responses starting with `62` + DID bytes. Before Mode 22 DPF polls the session MUST set ELM header to ECM physical address (`ATSH7E0`), matching Car Scanner / Torque GM profiles, and restore functional addressing (`ATSH7DF`) for standard Mode 01/03. UDS negative responses (`7F …`) MUST surface as a per-metric error (not a generic PARSE). Missing DIDs (`NO DATA`) MUST NOT abort the rest of the poll cycle. Raw RX MUST remain available via the existing diag log / archive path for Aveo discovery.
 
 #### Scenario: Demo soot load
 
 - GIVEN Demo ELM transport
-- WHEN the session reads DID `3275`
+- WHEN the session reads DID `3275` with ECM physical addressing
 - THEN the decoded soot load is a percentage value suitable for the DPF tab
+
+#### Scenario: Mode 22 without ECM header yields UDS reject
+
+- GIVEN Aveo live log RX `7F2222` for `223275`
+- WHEN parsed as an error
+- THEN the metric error identifies UDS negative response `conditionsNotCorrect` (not PARSE alone)

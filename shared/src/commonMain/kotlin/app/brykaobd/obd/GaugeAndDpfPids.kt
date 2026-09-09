@@ -78,7 +78,8 @@ object GaugePids {
 }
 
 /**
- * DPF metrics: SAE Mode 01 where available + GM/Opel Mode 22 candidates (verify on Aveo).
+ * DPF metrics: SAE Mode 01 where available + GM/Opel Mode 22 (header ATSH7E0 required).
+ * DIDs aligned with Torque Astra-J 1.3 / Car Scanner GM profiles — verify on Aveo 1.3D.
  */
 object DpfPids {
     val dpfTempMode01 = ExtPids.mode01(
@@ -91,6 +92,15 @@ object DpfPids {
             val b = bytes.getOrNull(1)?.toUByte()?.toInt() ?: return@mode01 null
             ((a * 256) + b) / 10.0 - 40.0
         },
+    )
+
+    /** Differential pressure (Torque: 223273, equation A, kPa). */
+    val dpfPressure = ExtPids.mode22(
+        did = 0x3273,
+        namePl = "Ciśnienie DPF",
+        nameEn = "DPF pressure",
+        unit = "kPa",
+        decode = { bytes -> bytes.getOrNull(0)?.toUByte()?.toInt()?.toDouble() },
     )
 
     /** Torque/Car Scanner GM-style soot fill %. */
@@ -120,7 +130,7 @@ object DpfPids {
         namePl = "Status DPF",
         nameEn = "DPF status",
         unit = "",
-        decode = { bytes -> bytes.getOrNull(0)?.toUByte()?.toInt()?.toDouble() },
+        decode = { bytes -> bytes.getOrNull(0)?.toUByte()?.toInt()?.let { it * 100.0 / 255.0 } },
     )
 
     val dpfTempGm = ExtPids.mode22(
@@ -133,6 +143,7 @@ object DpfPids {
 
     val pollList: List<ExtPidDefinition> = listOf(
         sootLoad,
+        dpfPressure,
         kmSinceRegen,
         dpfStatus,
         dpfTempGm,

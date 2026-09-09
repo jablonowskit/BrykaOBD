@@ -51,6 +51,7 @@ import app.brykaobd.obd.Elm327Session
 import app.brykaobd.obd.ExtPidReading
 import app.brykaobd.obd.GaugePids
 import app.brykaobd.obd.LoggingTransport
+import app.brykaobd.obd.ObdAddress
 import app.brykaobd.obd.ObdDiagLog
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -154,14 +155,18 @@ fun ObdDashboardScreen(
                 while (isActive) {
                     when (dashTab) {
                         DashTab.Gauges -> {
-                            val next = ioMutex.withLock { session.readExtList(GaugePids.pollList) }
+                            val next = ioMutex.withLock {
+                                session.readExtList(GaugePids.pollList, ObdAddress.Functional)
+                            }
                             gaugeReadings = next
                             val rate = next.firstOrNull { it.pid.request == GaugePids.fuelRate.request }?.value
                             val spd = next.firstOrNull { it.pid.request == GaugePids.speed.request }?.value
                             instantL100 = GaugePids.instantLitersPer100km(rate, spd)
                         }
                         DashTab.Dpf -> {
-                            dpfReadings = ioMutex.withLock { session.readExtList(DpfPids.pollList) }
+                            dpfReadings = ioMutex.withLock {
+                                session.readExtList(DpfPids.pollList, ObdAddress.EcmPhysical)
+                            }
                         }
                     }
                     refreshDiag()
@@ -541,7 +546,7 @@ fun ObdDashboardScreen(
                 }
                 DashTab.Dpf -> {
                     Text(
-                        "Mode 01 7C + Mode 22 (GM/Opel kandydaci). Na Aveo często NO DATA — raw w logu.",
+                        "Mode 22 przez ATSH7E0 (jak Car Scanner). Ciśnienie/zapełnienie/temp — surowy RX w logu przy błędzie.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

@@ -5,6 +5,7 @@ package app.brykaobd.obd
  */
 object ElmParser {
     fun isErrorResponse(text: String): String? {
+        udsNegativeResponse(text)?.let { return it }
         val u = text.uppercase()
         return when {
             "NO DATA" in u -> "NO DATA"
@@ -22,6 +23,31 @@ object ElmParser {
                 } -> "?"
             else -> null
         }
+    }
+
+    /**
+     * UDS negative response `7F <service> <NRC>` (e.g. `7F2222` = Mode 22 conditionsNotCorrect /
+     * often seen when Mode 22 is sent without ECM physical header `ATSH7E0`).
+     */
+    fun udsNegativeResponse(text: String): String? {
+        val bytes = allHexBytes(text).map { it.toInt() and 0xFF }
+        for (i in 0 until bytes.size - 2) {
+            if (bytes[i] != 0x7F) continue
+            val service = bytes[i + 1]
+            val nrc = bytes[i + 2]
+            val nrcLabel = when (nrc) {
+                0x11 -> "serviceNotSupported"
+                0x12 -> "subFunctionNotSupported"
+                0x13 -> "incorrectMessageLength"
+                0x22 -> "conditionsNotCorrect"
+                0x31 -> "requestOutOfRange"
+                0x33 -> "securityAccessDenied"
+                0x78 -> "responsePending"
+                else -> "NRC"
+            }
+            return "UDS_7F/${service.toString(16).uppercase()}/${nrc.toString(16).uppercase()} $nrcLabel"
+        }
+        return null
     }
 
     /**

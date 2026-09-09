@@ -34,6 +34,7 @@ Surowy RX (continuous): `SEARCHING...` + `430204030405` → po poprawnym parse: 
 - Przed fixem continuous hex wszystkie PID leciały jako `PARSE` mimo poprawnych ramek.
 - Reinstall APK z innym podpisem CI kasuje lokalne pliki `diag/` na telefonie — warto `adb pull` przed uninstall.
 - Numer COM na Windows bywa zmienny po ponownym sparowaniu V-LINK.
+- **Mode 22 DPF bez `ATSH7E0`**: RX `7F2222` (UDS reject) → w UI wyglądało jak brak danych; Car Scanner działa, bo stawia header ECM `7E0`. Fix: zakładka DPF → physical header.
 
 ## Powiązane
 

@@ -32,14 +32,22 @@ class ExtPidDecodeTest {
     }
 
     @Test
+    fun uds_negative_7f2222() {
+        val err = ElmParser.udsNegativeResponse("7F2222")
+        assertEquals("UDS_7F/22/22 conditionsNotCorrect", err)
+        assertEquals(err, ElmParser.isErrorResponse("7F2222"))
+    }
+
+    @Test
     fun demo_ext_session_reads_gauge_and_dpf() = runBlocking {
         val session = Elm327Session(DemoElmTransport())
         session.initialize()
-        val gauges = session.readExtList(GaugePids.pollList)
+        val gauges = session.readExtList(GaugePids.pollList, ObdAddress.Functional)
         assertEquals(50.0, gauges.first { it.pid.request == GaugePids.speed.request }.value)
         assertEquals(5.0, gauges.first { it.pid.request == GaugePids.fuelRate.request }.value)
-        val dpf = session.readExtList(DpfPids.pollList)
+        val dpf = session.readExtList(DpfPids.pollList, ObdAddress.EcmPhysical)
         assertEquals(45.0, dpf.first { it.pid.request == DpfPids.sootLoad.request }.value)
+        assertEquals(12.0, dpf.first { it.pid.request == DpfPids.dpfPressure.request }.value)
         assertEquals(1200.0, dpf.first { it.pid.request == DpfPids.kmSinceRegen.request }.value)
         session.close()
     }
