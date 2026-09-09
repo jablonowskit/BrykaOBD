@@ -46,6 +46,8 @@ composeApp/      jeden UI (android + desktop)
 - Joby: `shared` unit testy + Android **debug** APK (artifact)
 - Release/signing — później (na start bez keystore)
 
+## Specyfikacja
+
 - ELM327 datasheet: https://www.elmelectronics.com/wp-content/uploads/2016/07/ELM327DS.pdf
 - PID/DTC: publiczne zestawienia J1979 / J2012
 
