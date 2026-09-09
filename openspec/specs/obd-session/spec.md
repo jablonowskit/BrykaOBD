@@ -38,13 +38,19 @@ The live dashboard SHALL poll at least these Mode 01 PIDs with SAE J1979-style d
 
 ### Requirement: Error and empty OBD responses
 
-When the ELM reply indicates an error or empty data (`NO DATA`, `UNABLE TO CONNECT`, `BUS INIT ERROR`, `CAN ERROR`, `STOPPED`, or unparsable payload), the corresponding `PidReading` MUST expose a non-null `error` (or equivalent) and MUST NOT invent a numeric value.
+When the ELM reply indicates an error or empty data (`NO DATA`, `UNABLE TO CONNECT`, `BUS INIT ERROR`, `CAN ERROR`, `STOPPED`, or unparsable payload), the corresponding `PidReading` MUST expose a non-null `error` (or equivalent) and MUST NOT invent a numeric value. The parser MUST accept both spaced hex (`41 05 3B`) and continuous hex (`41053B`) as returned when `ATS0` disables spaces (common on V-LINK / clones).
 
 #### Scenario: NO DATA on PID
 
 - GIVEN an ELM reply containing `NO DATA` for a requested PID
 - WHEN `readPid` completes
 - THEN `value` is null and `error` is `NO DATA`
+
+#### Scenario: Coolant from continuous hex ATS0
+
+- GIVEN ELM reply `41053B`
+- WHEN Mode 01 PID `05` is decoded
+- THEN coolant temperature is `19` °C
 
 ### Requirement: Demo mode without hardware
 

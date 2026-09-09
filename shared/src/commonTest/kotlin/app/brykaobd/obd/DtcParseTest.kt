@@ -34,6 +34,13 @@ class DtcParseTest {
     }
 
     @Test
+    fun parseMode03ContinuousHexFromAveoVlink() {
+        // SEARCHING... then 43 02 04 03 04 05 without spaces
+        val codes = ElmParser.parseMode03Dtcs("SEARCHING...\r430204030405\r\r>")
+        assertEquals(listOf("P0403", "P0405"), codes)
+    }
+
+    @Test
     fun sessionReadsAndClearsDemoDtcs() = runBlocking {
         val diag = ObdDiagLog()
         val session = Elm327Session(LoggingTransport(DemoElmTransport(), diag), diag)

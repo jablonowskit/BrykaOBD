@@ -4,8 +4,6 @@ package app.brykaobd.obd
  * Parses ELM327 text responses for Mode 01 (e.g. "41 0C 1A F8") and Mode 03 DTC frames.
  */
 object ElmParser {
-    private val hexByte = Regex("""\b([0-9A-Fa-f]{2})\b""")
-
     fun isErrorResponse(text: String): String? {
         val u = text.uppercase()
         return when {
@@ -119,8 +117,22 @@ object ElmParser {
         }
     }
 
-    private fun allHexBytes(response: String): List<Byte> =
-        hexByte.findAll(response.replace("\r", " ").replace("\n", " "))
-            .map { it.groupValues[1].toInt(16).toByte() }
-            .toList()
+    private fun allHexBytes(response: String): List<Byte> {
+        // Spaced frames: "41 05 3B". Continuous (ATS0 / many V-LINK clones): "41053B".
+        val cleaned = response.uppercase()
+            .replace("SEARCHING...", " ")
+            .replace(Regex("[^0-9A-F\\s]"), " ")
+        val bytes = ArrayList<Byte>()
+        for (token in cleaned.split(Regex("\\s+"))) {
+            if (token.isEmpty()) continue
+            if (token.length % 2 != 0) continue
+            if (!token.all { it in '0'..'9' || it in 'A'..'F' }) continue
+            var i = 0
+            while (i < token.length) {
+                bytes.add(token.substring(i, i + 2).toInt(16).toByte())
+                i += 2
+            }
+        }
+        return bytes
+    }
 }

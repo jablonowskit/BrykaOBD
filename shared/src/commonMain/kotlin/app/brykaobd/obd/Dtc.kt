@@ -28,6 +28,8 @@ object DtcCatalog {
         "P0171" to "Układ paliwowy zbyt ubogi (bank 1)",
         "P0172" to "Układ paliwowy zbyt bogaty (bank 1)",
         "P0401" to "Niewystarczający przepływ EGR",
+        "P0403" to "Obwód zaworu EGR / sterowanie",
+        "P0405" to "Czujnik pozycji EGR A — niski sygnał",
         "P0113" to "Czujnik IAT — sygnał za wysoki",
         "P0128" to "Termostat chłodzenia — temperatura poniżej regulacji",
         "P0700" to "Usterka skrzyni (żądanie MIL)",

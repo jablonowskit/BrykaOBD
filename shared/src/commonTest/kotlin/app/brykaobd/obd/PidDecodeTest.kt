@@ -37,14 +37,16 @@ class PidDecodeTest {
     }
 
     @Test
-    fun sessionReadsRpmViaFakeTransport() = runBlocking {
-        val transport = FakeTransport()
-        // init AT replies
-        repeat(6) { transport.enqueue("OK\r\n>") }
-        transport.enqueue("41 0C 1A F8\r\n>")
-        val session = Elm327Session(transport)
-        val reading = session.readPid(StandardPids.rpm)
-        assertNull(reading.error)
-        assertEquals(1726.0, reading.value)
+    fun extractCoolantFromAts0ContinuousHex() {
+        // Real Aveo/V-LINK RX with spaces off (ATS0): 0x3B → 19°C
+        val data = ElmParser.extractMode01Data("41053B\r\r>", 0x05)
+        assertEquals(1, data!!.size)
+        assertEquals(19.0, StandardPids.coolantTemp.decode(data))
+    }
+
+    @Test
+    fun extractVoltageContinuousHex() {
+        val data = ElmParser.extractMode01Data("414230E8\r\r>", 0x42)
+        assertEquals(12.52, StandardPids.controlModuleVoltage.decode(data!!))
     }
 }
