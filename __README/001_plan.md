@@ -55,10 +55,15 @@ composeApp/      jeden UI (android + desktop)
 
 1. Bootstrap GitHub — done
 2. Szkielet KMP + Compose (`shared`, `composeApp`, `androidApp`) — done (minimalny UI)
-3. Mapy + ELM + ekran dashboardu (PID uniwersalne) — done; Demo PID do UI bez BT
-4. **Android Classic SPP** — budowa na telefonie, E2E z ELM
+3. Mapy + ELM + ekran dashboardu (PID uniwersalne) — done; Demo PID
+4. **Android Classic SPP** — Połącz ELM (sparowane urządzenia) — in progress / done w kodzie
 5. Aveo 1.3D 2012 checklist (telefon w aucie)
 6. Desktop serial (Windows / Linux / macOS)
+
+### Bluetooth na telefonie
+1. Sparuj ELM327 w ustawieniach Androida.
+2. Zainstaluj debug APK (CI artifact lub `assembleDebug`).
+3. Udziel uprawnień BT → **Połącz ELM** → wybierz adapter → dashboard na żywo.
 
 ## Znane problemy
 

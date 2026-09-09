@@ -54,5 +54,5 @@ Przy każdym pushu / PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
 
 ## Status
 
-Repo na GitHub + szkielet KMP/Compose + ekran dashboardu (standardowe PID Mode 01). Następne: Bluetooth Classic SPP na telefonie.
+Repo na GitHub + dashboard PID + **Android Classic SPP** (`Połącz ELM`). Lokalnie bez Android SDK — APK buduje CI.
 
