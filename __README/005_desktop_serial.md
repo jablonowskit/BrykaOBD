@@ -10,8 +10,9 @@
 2. W Menedżerze urządzeń sprawdź port (`COMx`).
 3. Uruchom desktop:
    ```powershell
-   .\gradlew :composeApp:run
+   powershell -ExecutionPolicy Bypass -File scripts/uruchom-desktop.ps1
    ```
+   (albo `.\gradlew :composeApp:run`)
 4. **Połącz ELM** → wybierz `COMx`.
 5. Baud domyślnie **38400**. Logi: `%USERPROFILE%\.brykaobd\diag\`.
 
