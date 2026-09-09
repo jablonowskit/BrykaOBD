@@ -77,6 +77,7 @@ private enum class DashTab {
     Gauges,
     Dpf,
     Search,
+    Custom,
 }
 
 @Composable
@@ -261,6 +262,9 @@ fun ObdDashboardScreen(
                             } else {
                                 previewReadings = emptyMap()
                             }
+                        }
+                        DashTab.Custom -> {
+                            // live cards use activeReadings polled above
                         }
                     }
                     refreshDiag()
@@ -609,6 +613,7 @@ fun ObdDashboardScreen(
                 DashTab.Gauges -> 1
                 DashTab.Dpf -> 2
                 DashTab.Search -> 3
+                DashTab.Custom -> 4
             },
         ) {
             Tab(
@@ -630,6 +635,15 @@ fun ObdDashboardScreen(
                 selected = dashTab == DashTab.Search,
                 onClick = { dashTab = DashTab.Search },
                 text = { Text("Szukaj") },
+            )
+            Tab(
+                selected = dashTab == DashTab.Custom,
+                onClick = { dashTab = DashTab.Custom },
+                text = {
+                    Text(
+                        if (activeSensors.isEmpty()) "Odczyty" else "Odczyty (${activeSensors.size})",
+                    )
+                },
             )
         }
 
@@ -780,6 +794,14 @@ fun ObdDashboardScreen(
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                            if (activeSensors.isNotEmpty()) {
+                                Text(
+                                    "Dodane (${activeSensors.size}) → zakładka Odczyty",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.clickable { dashTab = DashTab.Custom },
+                                )
+                            }
                             displayHits.forEach { pid ->
                                 val already = pid.request in activeReqs
                                 val preview = previewReadings[pid.request]
@@ -794,12 +816,22 @@ fun ObdDashboardScreen(
                                     },
                                 )
                             }
-                            if (activeSensors.isNotEmpty()) {
+                        }
+                        DashTab.Custom -> {
+                            if (activeSensors.isEmpty()) {
                                 Text(
-                                    "Aktywne odczyty",
+                                    "Brak dodanych czujników. Użyj zakładki Szukaj → Dodaj.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                OutlinedButton(onClick = { dashTab = DashTab.Search }) {
+                                    Text("Przejdź do Szukaj")
+                                }
+                            } else {
+                                Text(
+                                    "Dodane czujniki (${activeSensors.size})",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(top = 8.dp),
                                 )
                                 activeSensors.forEach { pid ->
                                     val reading = activeReadings.firstOrNull { it.pid.request == pid.request }

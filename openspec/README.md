@@ -51,6 +51,6 @@ openspec/
 | [dtc](./specs/dtc/spec.md) | Mode 03 odczyt / Mode 04 kasowanie DTC |
 | [desktop-serial](./specs/desktop-serial/spec.md) | Windows/Linux COM → ELM (laptop w aucie) |
 | [dpf](./specs/dpf/spec.md) | Zakładki Zegary/DPF/Szukaj (metryki DPF), Mode 22 DID, L/100km |
-| [sensor-search](./specs/sensor-search/spec.md) | Zakładka Szukaj: katalog, filtr, podgląd &lt;20, aktywne odczyty |
+| [sensor-search](./specs/sensor-search/spec.md) | Zakładki Szukaj + Odczyty: katalog, filtr, podgląd &lt;20, aktywne |
 
 Plany produktowe / stack: [__README/001_plan.md](../__README/001_plan.md) — **nie** zastępują specs.
