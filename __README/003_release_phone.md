@@ -3,9 +3,14 @@
 Instrukcja dla **agentów LLM** i developerów: jak dostarczyć zmianę na telefon testowy.
 Lokalnie zwykle **brak Android SDK** — APK buduje **GitHub Actions**, nie Gradle na hoście.
 
-**Skill operacyjny (czytaj przy „wgraj na telefon”):**  
-[`.claude/skills/wgraj-na-telefon/SKILL.md`](../.claude/skills/wgraj-na-telefon/SKILL.md)  
-— zawiera obowiązkową weryfikację `lastUpdateTime` po `adb install`.
+**Skill operacyjny:** [`.claude/skills/wgraj-na-telefon/SKILL.md`](../.claude/skills/wgraj-na-telefon/SKILL.md)  
+
+**Preferowany one-liner:**
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/wgraj-na-telefon.ps1
+```
+Skrypt: CI dla dokładnego `HEAD` → download APK → `adb install -r` → assert świeżego `lastUpdateTime` → start apki.  
+Konflikt podpisów: `-AllowUninstall` (kasuje `files/diag/` — ostrzeż użytkownika).
 
 ## Kontekst repo
 

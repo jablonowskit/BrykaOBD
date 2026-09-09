@@ -2,93 +2,94 @@
 name: wgraj-na-telefon
 description: >-
   Zbuduj przez CI i zainstaluj APK BrykaOBD na podłączonym telefonie, z
-  potwierdzeniem, że instalacja faktycznie się wykonała. Użyj, gdy użytkownik
-  mówi "wgraj", "zainstaluj", "wrzuć na telefon" albo prosi o przetestowanie
-  zmian OBD/UI na urządzeniu.
+  potwierdzeniem lastUpdateTime. Użyj przy: "wgraj", "zainstaluj",
+  "wrzuć na telefon", test OBD/UI na urządzeniu.
 ---
 
 # Wgranie BrykaOBD na telefon
 
-Lokalnie zwykle **brak Android SDK** — APK buduje GitHub Actions (`:androidApp:assembleDebug`).
-Szczegóły referencyjne: [`__README/003_release_phone.md`](../../__README/003_release_phone.md).
-Shell: **PowerShell** — nie używaj `&&`; użyj `;` lub osobnych komend.
+Lokalnie zwykle **brak Android SDK** — APK buduje GitHub Actions.
+**Domyślnie uruchom skrypt** (nie ręczny adb „na oko”).
 
 | | |
 |---|---|
 | Package | `app.brykaobd` |
-| Artifact CI | `brykaobd-android-debug-apk` |
-| Plik lokalny | `artifacts/androidApp-debug.apk` |
-| Gałąź | `main` |
+| Activity | `app.brykaobd/app.brykaobd.android.MainActivity` |
+| Artifact | `brykaobd-android-debug-apk` |
+| Skrypt | [`scripts/wgraj-na-telefon.ps1`](../../../scripts/wgraj-na-telefon.ps1) |
+| Docs | [`__README/003_release_phone.md`](../../../__README/003_release_phone.md) |
 
-## Kroki
+Shell: PowerShell — **bez** `&&`.
 
-1. **Sprawdź, że zmiany są wypchnięte.** CI buduje z `origin/main`, nie z brudnego drzewa.
+## Ścieżka A — preferowana (skrypt)
+
+1. Jeśli są lokalne zmiany wymagane na telefonie: **commit + push** (albo sam skrypt zrobi `git push`, gdy tree czyste a HEAD ahead of origin).
+2. Telefon podłączony (`adb devices` → `device`).
+3. Z katalogu repo:
    ```powershell
-   git status --short
-   git log --oneline -1
+   powershell -ExecutionPolicy Bypass -File scripts/wgraj-na-telefon.ps1
    ```
-   Niezacommitowane / niepushnięte zmiany → najpierw commit + `git push origin HEAD`
-   (przy poleceniu „wgraj na telefon” to jest OK i konieczne). Inaczej wgrasz starą wersję.
-
-2. **Sprawdź telefon:**
+4. Konflikt podpisów (skrypt rzuci jasny błąd) → ostrzeż o kasowaniu logów diag, potem:
    ```powershell
-   adb devices
+   powershell -ExecutionPolicy Bypass -File scripts/wgraj-na-telefon.ps1 -AllowUninstall
    ```
-   Musi być stan `device`. `unauthorized` / brak wpisu → poproś użytkownika o USB debugging;
-   nie obchodź.
+5. Skrypt **sam**:
+   - pilnuje czystego gita / pusha
+   - czeka na CI dla **dokładnie** `git rev-parse HEAD` (`gh run list --commit`)
+   - pobiera artifact do `artifacts/androidApp-debug.apk`
+   - `adb install -r`
+   - weryfikuje świeże `lastUpdateTime` (fail jeśli stare)
+   - uruchamia apkę
 
-3. **Poczekaj na CI (run z najnowszego pusha):**
-   ```powershell
-   gh run list --limit 3
-   gh run watch <RUN_ID> --exit-status
-   ```
-   Timeout ~900 s. Zielone CI = testy `shared` + zbudowany APK.
+**Sukces = skrypt kończy się bez throw + zielone „OK: instalacja świeża”.**  
+Sam `adb Success` **nie wystarczy** (pułapka z Nuty 09.09.2026).
 
-4. **Pobierz APK:**
-   ```powershell
-   New-Item -ItemType Directory -Force -Path artifacts | Out-Null
-   Remove-Item -Force artifacts\androidApp-debug.apk -ErrorAction SilentlyContinue
-   gh run download <RUN_ID> -n brykaobd-android-debug-apk -D artifacts
-   ```
+### Flagi skryptu
 
-5. **Zainstaluj (preferuj zachowanie danych):**
-   ```powershell
-   adb install -r artifacts\androidApp-debug.apk
-   ```
+| Flaga | Kiedy |
+|-------|--------|
+| `-AllowUninstall` | Tylko konflikt podpisów; kasuje dane/`files/diag/` |
+| `-NoLaunch` | Zainstaluj bez startu UI |
+| `-Device <serial>` | Wiele telefonów w `adb devices` |
+| `-SkipGitCheck` | Awaryjnie; łatwo wgrać **stary** APK — unikaj |
+| `-WaitSeconds 900` | Max czekania na CI |
 
-6. **Konflikt podpisów** — tylko gdy:
-   `INSTALL_FAILED_UPDATE_INCOMPATIBLE` / *signatures do not match*
-   ```powershell
-   adb uninstall app.brykaobd
-   adb install artifacts\androidApp-debug.apk
-   ```
-   **Ostrzeż użytkownika:** uninstall kasuje dane apki, w tym logi w
-   `Android/data/app.brykaobd/files/diag/`. Nie uninstall „dla czystości”.
+## Ścieżka B — ręczna (gdy skrypt niedostępny)
 
-7. **POTWIERDŹ instalację — nie pomijaj:**
+1. `git status` / push HEAD.
+2. `adb devices` → `device`.
+3. `gh run list --commit $(git rev-parse HEAD)` → `gh run watch <ID> --exit-status`.
+4. `gh run download <ID> -n brykaobd-android-debug-apk -D artifacts`
+5. `adb install -r artifacts\androidApp-debug.apk`
+6. Przy `UPDATE_INCOMPATIBLE`: uninstall tylko po zgodzie usera (logi).
+7. **Obowiązkowo:**
    ```powershell
-   adb shell dumpsys package app.brykaobd | Select-String -Pattern "versionName|lastUpdateTime"
+   adb shell dumpsys package app.brykaobd | Select-String "versionName|lastUpdateTime"
    Get-Date -Format "yyyy-MM-dd HH:mm:ss"
    ```
-   `lastUpdateTime` musi być sprzed kilku–kilkunastu sekund. Jeśli jest starszy,
-   instalacja się **nie** wykonała mimo braku błędu adb — nie melduluj sukcesu.
+   `lastUpdateTime` musi być sprzed ~2 minut. Inaczej **nie** melduluj sukcesu.
 
-## Pułapka (z Nuty, obowiązuje też tu)
+## Decyzje agenta
 
-Sam komunikat `Success` z `adb install` albo „pobrałem APK” **nie wystarczy**.
-Zawsze sprawdzaj `lastUpdateTime`. Potwierdzone w Nucie 09.09.2026: agent zgłaszał
-wgranie, a na telefonie stała wersja sprzed godzin.
+| Sytuacja | Działanie |
+|----------|-----------|
+| User: „wgraj na telefon”, dirty tree | Commit (za zgodą / przy tym poleceniu) → push → skrypt |
+| CI czerwone | Nie instaluj; pokaż link do runa / log |
+| `unauthorized` | Poproś usera o dialog USB; nie obchodź |
+| Kilka urządzeń | `-Device` z seriala |
+| Chce zachować logi Aveo | **Bez** `-AllowUninstall`; rozwiąż podpis inaczej lub ostrzeż |
 
 ## Czego NIE robić
 
-- Nie zakładaj lokalnego `:androidApp:assembleDebug` bez `ANDROID_HOME` / SDK.
-- Nie force-push na `main`.
+- Nie `:androidApp:assembleDebug` bez SDK „na skróty”.
+- Nie uninstall „dla czystości”.
+- Nie `gh run download` **najnowszego** runa z `main`, jeśli HEAD to inny commit — zawsze `--commit` bieżącego SHA.
+- Nie kończ po samym `Success` bez weryfikacji czasu.
 - Nie commituj `artifacts/*.apk`.
-- Nie pomijaj kroku 7 (weryfikacja `lastUpdateTime`).
 
-## Smoke po wgraniu (opcjonalnie, gdy user testuje)
+## Smoke (opcjonalnie)
 
-1. Ikona BrykaOBD na launcherze.
-2. **Demo PID** → dashboard + Diagnostyka + wpis w Zapisane sesje.
-3. Live: sparowany ELM → **Połącz ELM**.
-4. Logcat na żywo: `adb logcat -s BrykaOBD`.
+1. Ikona / uruchomiona apka.
+2. Demo PID → Diagnostyka + Zapisane sesje.
+3. Live: Połącz ELM (sparowany dongle).
+4. `adb logcat -s BrykaOBD`
