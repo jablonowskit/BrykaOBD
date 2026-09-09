@@ -29,3 +29,13 @@ The session SHALL send Mode 22 requests as `22` + four hex DID digits and decode
 - GIVEN Aveo live log RX `7F2222` for `223275`
 - WHEN parsed as an error
 - THEN the metric error identifies UDS negative response `conditionsNotCorrect` (not PARSE alone)
+
+### Requirement: Curated PID/DID discovery probe
+
+After ELM init on Demo or live connect, the session SHALL run a one-shot discovery probe over a curated candidate map (SAE Mode 01 support/extras + Torque Astra-J 1.3 DPF Mode 22 + Astra-K alternates) using the correct address mode per request. Each reply MUST be classified (positive / NO DATA / UDS negative / other) and logged under category `DISCOVERY` with raw-derived payload when positive. The UI MUST show hit count/payload summary on the DPF tab and allow re-running the probe. Full DID space brute-force is out of scope.
+
+#### Scenario: Demo probe hits known requests
+
+- GIVEN Demo ELM transport
+- WHEN `probeDiscovery` runs the Aveo first-probe map
+- THEN at least Mode 01 speed `010D` and Mode 22 soot `223275` are classified as hits

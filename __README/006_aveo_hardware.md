@@ -36,8 +36,12 @@ Surowy RX (continuous): `SEARCHING...` + `430204030405` → po poprawnym parse: 
 - Numer COM na Windows bywa zmienny po ponownym sparowaniu V-LINK.
 - **Mode 22 DPF bez `ATSH7E0`**: RX `7F2222` (UDS reject) → w UI wyglądało jak brak danych; Car Scanner działa, bo stawia header ECM `7E0`. Fix: zakładka DPF → physical header.
 
-## Powiązane
+## Sonda mapy (odkrywanie)
 
-- [001_plan.md](./001_plan.md)
-- [005_desktop_serial.md](./005_desktop_serial.md)
-- Logi lokalne (jeśli ściągnięte): `artifacts/diag-pull/`
+Przy połączeniu apka odpytuje **curated** listę (nie cały UDS):
+
+- Mode 01 support `0100`…`01A0` + typowe PID diesla
+- Mode 22 DPF z [Torque Astra-J 1.3](https://torque-bhp.com/community/main-forum/vauxhall-opel-gm-dpf-pid/paged/14/) (`223035`…`22327A`, `223047`)
+- Alternatywy Astra-K (`22336A`, `2220F4`, …)
+
+Wyniki: log `DISCOVERY` + zakładka DPF. Źródło mapy: społeczność Torque / Car Scanner profile — weryfikacja na Aveo LDV.

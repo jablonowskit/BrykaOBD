@@ -46,6 +46,7 @@ import app.brykaobd.obd.DiagLevel
 import app.brykaobd.obd.DiagSessionInfo
 import app.brykaobd.obd.DiagShareFacade
 import app.brykaobd.obd.DpfPids
+import app.brykaobd.obd.DiscoveryResult
 import app.brykaobd.obd.DtcCode
 import app.brykaobd.obd.Elm327Session
 import app.brykaobd.obd.ExtPidReading
@@ -53,6 +54,7 @@ import app.brykaobd.obd.GaugePids
 import app.brykaobd.obd.LoggingTransport
 import app.brykaobd.obd.ObdAddress
 import app.brykaobd.obd.ObdDiagLog
+import app.brykaobd.obd.PidDiscoveryMap
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -86,6 +88,8 @@ fun ObdDashboardScreen(
         mutableStateOf(DpfPids.pollList.map { ExtPidReading(it, value = null) })
     }
     var instantL100 by remember { mutableStateOf<Double?>(null) }
+    var discoveryHits by remember { mutableStateOf<List<DiscoveryResult>>(emptyList()) }
+    var discoveryBusy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("Brak połączenia z ELM327") }
     var showDevicePicker by remember { mutableStateOf(false) }
     var devices by remember { mutableStateOf<List<BluetoothAdapterInfo>>(emptyList()) }
@@ -148,6 +152,17 @@ fun ObdDashboardScreen(
                 status = "Połączono: $label" +
                     (saved?.let { " · log ${it.fileName}" } ?: "")
                 refreshDiag()
+                status = "Sonda mapy PID/DID…"
+                discoveryBusy = true
+                discoveryHits = emptyList()
+                val probed = ioMutex.withLock {
+                    session.probeDiscovery(PidDiscoveryMap.aveoFirstProbe)
+                }
+                discoveryHits = probed.filter { it.isHit }
+                discoveryBusy = false
+                status = "Połączono: $label · sonda ${discoveryHits.size}/${probed.size} hit" +
+                    (saved?.let { " · log ${it.fileName}" } ?: "")
+                refreshDiag()
                 val firstDtcs = ioMutex.withLock { session.readStoredDtcs() }
                 dtcCodes = firstDtcs.codes
                 dtcError = firstDtcs.error
@@ -179,11 +194,15 @@ fun ObdDashboardScreen(
                 gaugeReadings = emptyGauges()
                 dpfReadings = emptyDpf()
                 instantL100 = null
+                discoveryHits = emptyList()
+                discoveryBusy = false
+                discoveryBusy = false
                 dtcCodes = emptyList()
                 dtcError = null
                 liveSession = null
                 refreshDiag()
             } finally {
+                discoveryBusy = false
                 liveSession = null
                 session?.close()
                 diag.endPersistedSession()
@@ -288,11 +307,35 @@ fun ObdDashboardScreen(
         gaugeReadings = emptyGauges()
         dpfReadings = emptyDpf()
         instantL100 = null
+        discoveryHits = emptyList()
+        discoveryBusy = false
         dtcCodes = emptyList()
         dtcError = null
         liveSession = null
         status = "Brak połączenia z ELM327"
         refreshDiag()
+    }
+
+    fun runDiscoveryAgain() {
+        val session = liveSession ?: return
+        if (discoveryBusy) return
+        discoveryBusy = true
+        scope.launch {
+            try {
+                status = "Sonda mapy PID/DID…"
+                val probed = ioMutex.withLock {
+                    session.probeDiscovery(PidDiscoveryMap.aveoFirstProbe)
+                }
+                discoveryHits = probed.filter { it.isHit }
+                status = "Sonda: ${discoveryHits.size}/${probed.size} hit (szczegóły w logu)"
+                refreshDiag()
+            } catch (e: Exception) {
+                status = "Sonda błąd: ${e.message}"
+                refreshDiag()
+            } finally {
+                discoveryBusy = false
+            }
+        }
     }
 
     fun openSessions() {
@@ -546,10 +589,46 @@ fun ObdDashboardScreen(
                 }
                 DashTab.Dpf -> {
                     Text(
-                        "Mode 22 przez ATSH7E0 (jak Car Scanner). Ciśnienie/zapełnienie/temp — surowy RX w logu przy błędzie.",
+                        "Po połączeniu: auto-sonda mapy (Astra-J 1.3 + Mode 01). Mode 22 = ATSH7E0.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = { runDiscoveryAgain() },
+                            enabled = mode != LinkMode.Disconnected && !discoveryBusy,
+                        ) {
+                            Text(if (discoveryBusy) "Sonda…" else "Sonda mapy")
+                        }
+                        Text(
+                            "Hity: ${discoveryHits.size}",
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.align(Alignment.CenterVertically),
+                        )
+                    }
+                    if (discoveryHits.isNotEmpty()) {
+                        Card(
+                            Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            ),
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text(
+                                    "Odkryte odpowiedzi (payload)",
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                discoveryHits.take(40).forEach { hit ->
+                                    Text(
+                                        "${hit.candidate.request} ${hit.candidate.namePl}: ${hit.payloadHex}",
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 11.sp,
+                                        modifier = Modifier.padding(top = 4.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
                     dpfReadings.forEach { ExtPidCard(it) }
                 }
             }

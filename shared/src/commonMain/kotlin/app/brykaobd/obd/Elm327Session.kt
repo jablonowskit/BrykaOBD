@@ -107,6 +107,34 @@ class Elm327Session(
         return pids.map { readExtPid(it, target) }
     }
 
+    /**
+     * One-shot probe of curated Mode 01 / Mode 22 candidates (log raw RX for Aveo mapping).
+     * Groups by address to avoid flipping ATSH every request.
+     */
+    suspend fun probeDiscovery(
+        candidates: List<DiscoveryCandidate> = PidDiscoveryMap.aveoFirstProbe,
+    ): List<DiscoveryResult> {
+        ensureInit()
+        val results = ArrayList<DiscoveryResult>(candidates.size)
+        for ((addr, group) in candidates.groupBy { it.address }) {
+            setAddress(addr)
+            for (c in group) {
+                transport.write("${c.request}\r")
+                val reply = transport.readUntilPrompt()
+                val result = classifyDiscovery(c, reply)
+                results += result
+                val tag = if (result.isHit) "HIT" else result.kind.name
+                diag.info(
+                    "DISCOVERY",
+                    "$tag ${c.request} ${c.nameEn} ← ${result.payloadHex ?: result.kind.name}",
+                )
+            }
+        }
+        val hits = results.count { it.isHit }
+        diag.info("DISCOVERY", "Probe done: $hits hit(s) / ${results.size} requests")
+        return results
+    }
+
     suspend fun readStoredDtcs(): DtcReadResult {
         ensureInit()
         setAddress(ObdAddress.Functional)
@@ -149,6 +177,49 @@ class Elm327Session(
 
     private fun defaultAddressFor(pid: ExtPidDefinition): ObdAddress =
         if (pid.responseService == 0x62) ObdAddress.EcmPhysical else ObdAddress.Functional
+
+    private fun classifyDiscovery(c: DiscoveryCandidate, reply: String): DiscoveryResult {
+        val compact = reply.replace("\r", " ").replace("\n", " ").trim()
+        ElmParser.udsNegativeResponse(reply)?.let {
+            return DiscoveryResult(c, compact, DiscoveryKind.UdsNeg, payloadHex = it)
+        }
+        if (ElmParser.isErrorResponse(reply) == "NO DATA") {
+            return DiscoveryResult(c, compact, DiscoveryKind.NoData, payloadHex = null)
+        }
+        val bytes = ElmParser.extractPositiveResponseData(
+            reply,
+            responseService = when {
+                c.request.startsWith("22") -> 0x62
+                c.request.startsWith("01") -> 0x41
+                c.request.startsWith("1A") -> 0x5A
+                else -> 0x62
+            },
+            matchIds = matchIdsForRequest(c.request),
+        )
+        if (bytes != null) {
+            val kind = when {
+                c.request.startsWith("22") -> DiscoveryKind.Positive62
+                c.request.startsWith("1A") -> DiscoveryKind.Positive5A
+                else -> DiscoveryKind.Positive41
+            }
+            val hex = bytes.joinToString("") { (it.toInt() and 0xFF).toString(16).padStart(2, '0') }.uppercase()
+            return DiscoveryResult(c, compact, kind, payloadHex = hex)
+        }
+        return DiscoveryResult(c, compact, DiscoveryKind.Other, payloadHex = null)
+    }
+
+    private fun matchIdsForRequest(request: String): IntArray {
+        val hex = request.uppercase().removePrefix("22").removePrefix("01").removePrefix("1A")
+        return when {
+            request.uppercase().startsWith("22") && hex.length >= 4 ->
+                intArrayOf(hex.substring(0, 2).toInt(16), hex.substring(2, 4).toInt(16))
+            request.uppercase().startsWith("01") && hex.length >= 2 ->
+                intArrayOf(hex.substring(0, 2).toInt(16))
+            request.uppercase().startsWith("1A") && hex.length >= 2 ->
+                intArrayOf(hex.substring(0, 2).toInt(16))
+            else -> intArrayOf()
+        }
+    }
 
     private suspend fun ensureInit() {
         if (!initialized) initialize()
