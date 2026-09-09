@@ -3,6 +3,10 @@
 Instrukcja dla **agentów LLM** i developerów: jak dostarczyć zmianę na telefon testowy.
 Lokalnie zwykle **brak Android SDK** — APK buduje **GitHub Actions**, nie Gradle na hoście.
 
+**Skill operacyjny (czytaj przy „wgraj na telefon”):**  
+[`.claude/skills/wgraj-na-telefon/SKILL.md`](../.claude/skills/wgraj-na-telefon/SKILL.md)  
+— zawiera obowiązkową weryfikację `lastUpdateTime` po `adb install`.
+
 ## Kontekst repo
 
 | | |

@@ -16,13 +16,18 @@ Plany / notatki w `__README/` **nie** zastępują `openspec/specs/`.
 
 ## Dostarczanie na telefon (obowiązkowa wiedza)
 
-Pełna procedura: [__README/003_release_phone.md](__README/003_release_phone.md).
+Procedura operacyjna (skill): [`.claude/skills/wgraj-na-telefon/SKILL.md`](.claude/skills/wgraj-na-telefon/SKILL.md)
+(kopia Cursor: [`.cursor/skills/wgraj-na-telefon/`](.cursor/skills/wgraj-na-telefon/)).
+
+Referencja: [__README/003_release_phone.md](__README/003_release_phone.md).
+
+Gdy user mówi „wgraj / zainstaluj / na telefon” → **najpierw przeczytaj skill**, potem wykonaj (w tym weryfikację `lastUpdateTime`).
 
 Skrót:
 
-1. Commit (tylko na prośbę usera / przy „wgraj na telefon”) → `git push origin HEAD`.
-2. CI buduje APK (`brykaobd-android-debug-apk`) — lokalnie zwykle **bez** Android SDK.
-3. `gh run watch` → `gh run download … -D artifacts` → `adb install -r artifacts\androidApp-debug.apk`.
-4. Przy `INSTALL_FAILED_UPDATE_INCOMPATIBLE`: `adb uninstall app.brykaobd`, potem `adb install` (kasuje dane/logi na telefonie).
-5. PowerShell: nie używaj `&&` — `;` lub osobne komendy.
-6. Package: `app.brykaobd`. Testy bez SDK: `.\gradlew --no-daemon :shared:jvmTest`.
+1. Commit + `git push origin HEAD` (żeby CI zbudowało aktualny APK).
+2. `gh run watch` → `gh run download … -n brykaobd-android-debug-apk -D artifacts`.
+3. `adb install -r artifacts\androidApp-debug.apk`.
+4. Przy konflikcie podpisów: `adb uninstall app.brykaobd` + install (kasuje logi diag — ostrzeż).
+5. Potwierdź: `adb shell dumpsys package app.brykaobd` → świeże `lastUpdateTime`.
+6. PowerShell: bez `&&`. Package: `app.brykaobd`. Testy host: `.\gradlew --no-daemon :shared:jvmTest`.
