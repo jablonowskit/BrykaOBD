@@ -15,10 +15,9 @@ Repozytorium: [https://github.com/jablonowskit/BrykaOBD](https://github.com/jabl
 ## Priorytet rozwoju
 
 1. Rdzeń OBD (`shared`) + wspólny UI
-2. **Windows first** — testy z ELM po COM
-3. E2E na aucie: **Chevrolet Aveo 1.3D (2012)**
-4. Linux / macOS
-5. Android Classic SPP
+2. **Android first (telefon)** — Bluetooth Classic SPP + ELM
+3. E2E na aucie: **Chevrolet Aveo 1.3D (2012)** z telefonu
+4. Desktop Windows / Linux / macOS (serial) — później
 
 ## GitHub — co i jak
 
@@ -47,4 +46,4 @@ Wzór katalogów jak w innych projektach (`D:\github\<Nazwa>` → `github.com/ja
 
 ## Status
 
-Repo na GitHub + szkielet KMP/Compose. Następne: protokół ELM + mapy PID/DTC + serial Windows.
+Repo na GitHub + szkielet KMP/Compose. Następne: protokół ELM + mapy PID/DTC + Bluetooth Classic na telefonie.

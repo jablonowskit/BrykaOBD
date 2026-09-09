@@ -7,9 +7,8 @@ Odczyt OBD-II przez adapter **ELM327**: komunikacja + mapa kodów (PID/DTC) + je
 ## Stack
 
 - Kotlin Multiplatform + Compose Multiplatform
-- Transport desktop: serial (Windows/Linux/macOS)
-- Transport Android: Bluetooth Classic SPP
-- Testy pierwsze: Windows + ELM → COM
+- Transport Android: Bluetooth Classic SPP — **pierwsze testy na telefonie**
+- Transport desktop: serial (Windows/Linux/macOS) — później
 
 ## GitHub
 
@@ -21,7 +20,7 @@ Odczyt OBD-II przez adapter **ELM327**: komunikacja + mapa kodów (PID/DTC) + je
 | Gałąź | `main` |
 | Protokół | HTTPS |
 
-Wzór jak [Nuta](https://github.com/jablonowskit/Nuta) (`D:\github\Nuta`). Reguł „tylko Docker / bez Gradle na hoście” z Nuty **nie** stosujemy tutaj — E2E z ELM na Windows wymaga lokalnego uruchomienia.
+Wzór jak [Nuta](https://github.com/jablonowskit/Nuta) (`D:\github\Nuta`). Reguł „tylko Docker / bez Gradle na hoście” z Nuty **nie** stosujemy tutaj — budowanie APK i testy z telefonem + ELM lokalnie.
 
 ## Samochód testowy
 
@@ -50,9 +49,9 @@ composeApp/      jeden UI (android + desktop)
 1. Bootstrap GitHub — done
 2. Szkielet KMP + Compose (`shared`, `composeApp`, `androidApp`) — done (minimalny UI)
 3. Mapy + ELM + testy — next
-4. Serial Windows E2E
-5. Aveo 1.3D 2012 checklist
-6. Linux/macOS + Android SPP
+4. **Android Classic SPP** — budowa na telefonie, E2E z ELM
+5. Aveo 1.3D 2012 checklist (telefon w aucie)
+6. Desktop serial (Windows / Linux / macOS)
 
 ## Znane problemy
 
