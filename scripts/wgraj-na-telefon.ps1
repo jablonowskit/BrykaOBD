@@ -142,7 +142,8 @@ function Wait-ForCi([string] $Sha) {
     Write-Host "Run: $($run.url)"
     if ($run.status -ne "completed") {
         Write-Step "gh run watch $runId"
-        gh run watch $runId --exit-status
+        # PowerShell: uncaptured native stdout becomes function output and corrupts return value.
+        & gh run watch $runId --exit-status 2>&1 | ForEach-Object { Write-Host $_ }
         if ($LASTEXITCODE -ne 0) {
             throw "CI run $runId did not succeed."
         }
@@ -153,7 +154,7 @@ function Wait-ForCi([string] $Sha) {
         }
         Write-Host "CI already success."
     }
-    return $runId
+    return ,$runId
 }
 
 function Download-Apk([string] $RunId) {
