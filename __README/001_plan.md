@@ -56,14 +56,17 @@ composeApp/      jeden UI (android + desktop)
 1. Bootstrap GitHub — done
 2. Szkielet KMP + Compose (`shared`, `composeApp`, `androidApp`) — done (minimalny UI)
 3. Mapy + ELM + ekran dashboardu (PID uniwersalne) — done; Demo PID
-4. **Android Classic SPP** — Połącz ELM (sparowane urządzenia) — in progress / done w kodzie
-5. Aveo 1.3D 2012 checklist (telefon w aucie)
-6. Desktop serial (Windows / Linux / macOS)
+4. **Android Classic SPP** — Połącz ELM — done
+5. **Diagnostyka szczegółowa** — panel + Logcat `BrykaOBD` — done
+6. **Trwały zapis sesji** (plik + Zapisane sesje / Udostępnij) — done
+7. Aveo 1.3D 2012 checklist (telefon w aucie)
+8. Desktop serial (Windows / Linux / macOS)
 
 ### Bluetooth na telefonie
 1. Sparuj ELM327 w ustawieniach Androida.
 2. Zainstaluj debug APK (CI artifact lub `assembleDebug`).
-3. Udziel uprawnień BT → **Połącz ELM** → wybierz adapter → dashboard na żywo.
+4. Udziel uprawnień BT → **Połącz ELM** → wybierz adapter → dashboard na żywo.
+5. Panel **Diagnostyka** + **Zapisane sesje** (pliki w `Android/data/app.brykaobd/files/diag/`) — po powrocie z auta podgląd / udostępnienie; Logcat tag `BrykaOBD` tylko na żywo.
 
 ## Znane problemy
 
@@ -72,3 +75,5 @@ composeApp/      jeden UI (android + desktop)
 - Klony ELM — timeouty i retry w protokole
 - Część PID na Aveo diesel może zwracać `NO DATA`
 - iOS + Classic SPP — poza MVP
+- Polling dashboardu szybko wypełnia ring-buffer UI (~600 linii); **plik sesji** trzyma pełny przebieg (do limitu liczby sesji)
+- Logcat nie jest trwałym archiwum — do diagnozy po jeździe używaj plików / Udostępnij

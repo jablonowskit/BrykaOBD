@@ -14,5 +14,5 @@ data class BluetoothAdapterInfo(
 interface BluetoothElmFacade {
     fun isBluetoothUsable(): Boolean
     fun bondedAdapters(): List<BluetoothAdapterInfo>
-    suspend fun connect(address: String): Transport
+    suspend fun connect(address: String, diag: ObdDiagLog): Transport
 }

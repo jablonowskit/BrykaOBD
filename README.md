@@ -54,5 +54,5 @@ Przy każdym pushu / PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
 
 ## Status
 
-Repo na GitHub + dashboard PID + **Android Classic SPP** (`Połącz ELM`). Lokalnie bez Android SDK — APK buduje CI.
+Repo na GitHub + dashboard PID + **Android Classic SPP** + log diagnostyczny (**UI + plik sesji + Logcat `BrykaOBD`**). Po jeździe: **Zapisane sesje** / Udostępnij / `adb pull …/files/diag/`. APK buduje CI.
 

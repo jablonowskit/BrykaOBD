@@ -10,27 +10,37 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import app.brykaobd.App
 import app.brykaobd.obd.AndroidBluetoothElmFacade
+import app.brykaobd.obd.AndroidDiagShare
+import app.brykaobd.obd.createAndroidDiagArchive
 
 class MainActivity : ComponentActivity() {
     private val bluetoothFacade by lazy { AndroidBluetoothElmFacade(this) }
+    private val diagArchive by lazy { createAndroidDiagArchive(this) }
+    private val diagShare by lazy { AndroidDiagShare(this) }
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) {
-        setContent {
-            App(bluetooth = bluetoothFacade)
-        }
+        showApp()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val needed = bluetoothPermissions().filterNot { granted(it) }
         if (needed.isEmpty()) {
-            setContent {
-                App(bluetooth = bluetoothFacade)
-            }
+            showApp()
         } else {
             permissionLauncher.launch(needed.toTypedArray())
+        }
+    }
+
+    private fun showApp() {
+        setContent {
+            App(
+                bluetooth = bluetoothFacade,
+                diagArchive = diagArchive,
+                diagShare = diagShare,
+            )
         }
     }
 

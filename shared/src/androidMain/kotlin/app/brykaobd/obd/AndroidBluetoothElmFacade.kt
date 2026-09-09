@@ -45,15 +45,24 @@ class AndroidBluetoothElmFacade(
     }
 
     @SuppressLint("MissingPermission")
-    override suspend fun connect(address: String): Transport = withContext(Dispatchers.IO) {
-        val adapter = adapterOrNull() ?: error("Brak adaptera Bluetooth w telefonie")
-        if (!adapter.isEnabled) error("Włącz Bluetooth")
+    override suspend fun connect(address: String, diag: ObdDiagLog): Transport = withContext(Dispatchers.IO) {
+        diag.info("BT", "Connecting SPP to $address")
+        val adapter = adapterOrNull() ?: run {
+            diag.error("BT", "Brak adaptera Bluetooth w telefonie")
+            error("Brak adaptera Bluetooth w telefonie")
+        }
+        if (!adapter.isEnabled) {
+            diag.error("BT", "Bluetooth wyłączony")
+            error("Włącz Bluetooth")
+        }
         adapter.cancelDiscovery()
         val device = adapter.getRemoteDevice(address)
         val socket = device.createRfcommSocketToServiceRecord(SppUuid)
         try {
             socket.connect()
+            diag.info("BT", "SPP connected: ${device.name ?: "?"} ($address)")
         } catch (e: Exception) {
+            diag.error("BT", "Connect failed $address: ${e.message}")
             runCatching { socket.close() }
             throw IllegalStateException("Nie połączono z $address: ${e.message}", e)
         }
