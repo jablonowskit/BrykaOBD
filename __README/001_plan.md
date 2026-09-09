@@ -27,7 +27,7 @@ Wzór jak [Nuta](https://github.com/jablonowskit/Nuta) (`D:\github\Nuta`). Regu�
 - **Chevrolet Aveo 1.3D (diesel), 2012**
 - MVP: Mode 01 (standardowe PID) + Mode 03 (DTC)
 - DPF / PID producenta GM — później
-- Tu logować: co działa / `NO DATA` na Aveo
+- Sprzęt + pierwsze pomiary: [006_aveo_hardware.md](./006_aveo_hardware.md) (V-LINK → `ELM327 v2.2`, coolant 19 °C = Car Scanner)
 
 ## Architektura (docelowa)
 

@@ -43,7 +43,8 @@ Przy każdym pushu / PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
 - [openspec/README.md](openspec/README.md) — **OpenSpec**: bieżące zachowanie + zmiany (dla agentów LLM)
 - [__README/001_plan.md](__README/001_plan.md) — plan, architektura, znane problemy
 - [__README/002_obd_references.md](__README/002_obd_references.md) — wzorce OSS i źródła OBD/ELM
-- [__README/003_release_phone.md](__README/003_release_phone.md) — commit / push / CI / APK / adb na telefon
+- [__README/005_desktop_serial.md](__README/005_desktop_serial.md) — Windows COM / laptop w aucie
+- [__README/006_aveo_hardware.md](__README/006_aveo_hardware.md) — V-LINK / ELM v2.2 / pierwsze odczyty Aveo
 - [AGENTS.md](AGENTS.md) — wskazówki dla agentów LLM
 
 ## Moduły
