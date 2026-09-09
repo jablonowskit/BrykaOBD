@@ -64,9 +64,9 @@ composeApp/      jeden UI (android + desktop)
 
 ### Bluetooth na telefonie
 1. Sparuj ELM327 w ustawieniach Androida.
-2. Zainstaluj debug APK (CI artifact lub `assembleDebug`).
-4. Udziel uprawnień BT → **Połącz ELM** → wybierz adapter → dashboard na żywo.
-5. Panel **Diagnostyka** + **Zapisane sesje** (pliki w `Android/data/app.brykaobd/files/diag/`) — po powrocie z auta podgląd / udostępnienie; Logcat tag `BrykaOBD` tylko na żywo.
+2. Zainstaluj debug APK według [003_release_phone.md](./003_release_phone.md) (CI → `adb`).
+3. Udziel uprawnień BT → **Połącz ELM** → wybierz adapter → dashboard na żywo.
+4. Panel **Diagnostyka** + **Zapisane sesje** (pliki w `Android/data/app.brykaobd/files/diag/`) — po powrocie z auta podgląd / udostępnienie; Logcat tag `BrykaOBD` tylko na żywo.
 
 ## Znane problemy
 
@@ -77,3 +77,4 @@ composeApp/      jeden UI (android + desktop)
 - iOS + Classic SPP — poza MVP
 - Polling dashboardu szybko wypełnia ring-buffer UI (~600 linii); **plik sesji** trzyma pełny przebieg (do limitu liczby sesji)
 - Logcat nie jest trwałym archiwum — do diagnozy po jeździe używaj plików / Udostępnij
+- CI debug APK: możliwy konflikt podpisów przy reinstall — patrz [003_release_phone.md](./003_release_phone.md)

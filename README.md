@@ -42,6 +42,7 @@ Przy każdym pushu / PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
 
 - [__README/001_plan.md](__README/001_plan.md) — plan, architektura, znane problemy
 - [__README/002_obd_references.md](__README/002_obd_references.md) — wzorce OSS i źródła OBD/ELM
+- [__README/003_release_phone.md](__README/003_release_phone.md) — **commit / push / CI / APK / adb na telefon** (dla agentów LLM)
 - [AGENTS.md](AGENTS.md) — wskazówki dla agentów LLM
 
 ## Moduły
