@@ -31,6 +31,13 @@ Repozytorium: [https://github.com/jablonowskit/BrykaOBD](https://github.com/jabl
 
 Wzór katalogów jak w innych projektach (`D:\github\<Nazwa>` → `github.com/jablonowskit/<Nazwa>`).
 
+## CI
+
+Przy każdym pushu / PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
+
+- `:shared:jvmTest`
+- `:androidApp:assembleDebug` → artifact **brykaobd-android-debug-apk**
+
 ## Dokumentacja
 
 - [__README/001_plan.md](__README/001_plan.md) — plan, architektura, znane problemy

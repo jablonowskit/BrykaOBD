@@ -1,0 +1,42 @@
+name: BrykaOBD CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test-shared:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Unit tests (shared)
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :shared:jvmTest
+
+  build-android-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: android-actions/setup-android@v4
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Build Android debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :androidApp:assembleDebug
+      - name: Upload Android debug APK
+        uses: actions/upload-artifact@v5
+        with:
+          name: brykaobd-android-debug-apk
+          path: androidApp/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

@@ -39,7 +39,12 @@ shared/          ELM, mapy PID/DTC, Transport
 composeApp/      jeden UI (android + desktop)
 ```
 
-## Specyfikacja
+## CI
+
+- Workflow: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
+- Trigger: push, PR, `workflow_dispatch`
+- Joby: `shared` unit testy + Android **debug** APK (artifact)
+- Release/signing — później (na start bez keystore)
 
 - ELM327 datasheet: https://www.elmelectronics.com/wp-content/uploads/2016/07/ELM327DS.pdf
 - PID/DTC: publiczne zestawienia J1979 / J2012
