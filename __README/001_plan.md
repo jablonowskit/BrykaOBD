@@ -60,8 +60,9 @@ composeApp/      jeden UI (android + desktop)
 4. **Android Classic SPP** — Połącz ELM — done
 5. **Diagnostyka szczegółowa** — panel + Logcat `BrykaOBD` — done
 6. **Trwały zapis sesji** (plik + Zapisane sesje / Udostępnij) — done
-7. Aveo 1.3D 2012 checklist (telefon w aucie)
-8. Desktop serial (Windows / Linux / macOS)
+7. **Mode 03/04 DTC** — panel błędów + kasowanie z potwierdzeniem — done
+8. Aveo 1.3D 2012 checklist (telefon w aucie)
+9. Desktop serial (Windows / Linux / macOS)
 
 ### Bluetooth na telefonie
 1. Sparuj ELM327 w ustawieniach Androida.

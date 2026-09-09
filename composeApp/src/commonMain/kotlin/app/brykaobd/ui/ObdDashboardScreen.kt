@@ -43,6 +43,7 @@ import app.brykaobd.obd.DiagEntry
 import app.brykaobd.obd.DiagLevel
 import app.brykaobd.obd.DiagSessionInfo
 import app.brykaobd.obd.DiagShareFacade
+import app.brykaobd.obd.DtcCode
 import app.brykaobd.obd.Elm327Session
 import app.brykaobd.obd.LoggingTransport
 import app.brykaobd.obd.ObdDiagLog
@@ -52,6 +53,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 private enum class LinkMode {
     Disconnected,
@@ -79,6 +82,12 @@ fun ObdDashboardScreen(
     var previewText by remember { mutableStateOf<String?>(null) }
     var previewName by remember { mutableStateOf<String?>(null) }
     var activeFile by remember { mutableStateOf<String?>(null) }
+    var dtcCodes by remember { mutableStateOf<List<DtcCode>>(emptyList()) }
+    var dtcError by remember { mutableStateOf<String?>(null) }
+    var dtcBusy by remember { mutableStateOf(false) }
+    var confirmClearDtc by remember { mutableStateOf(false) }
+    var liveSession by remember { mutableStateOf<Elm327Session?>(null) }
+    val ioMutex = remember { Mutex() }
     val diag = remember(diagArchive) {
         ObdDiagLog(capacity = 600, archive = diagArchive)
     }
@@ -117,12 +126,17 @@ fun ObdDashboardScreen(
             var session: Elm327Session? = null
             try {
                 session = open()
+                liveSession = session
                 session.initialize()
                 status = "Połączono: $label" +
                     (saved?.let { " · log ${it.fileName}" } ?: "")
                 refreshDiag()
+                val firstDtcs = ioMutex.withLock { session.readStoredDtcs() }
+                dtcCodes = firstDtcs.codes
+                dtcError = firstDtcs.error
+                refreshDiag()
                 while (isActive) {
-                    readings = session.readDashboard()
+                    readings = ioMutex.withLock { session.readDashboard() }
                     refreshDiag()
                     delay(400)
                 }
@@ -131,11 +145,64 @@ fun ObdDashboardScreen(
                 status = "Błąd: ${e.message}"
                 mode = LinkMode.Disconnected
                 readings = StandardPids.dashboard.map { PidReading(it, value = null) }
+                dtcCodes = emptyList()
+                dtcError = null
+                liveSession = null
                 refreshDiag()
             } finally {
+                liveSession = null
                 session?.close()
                 diag.endPersistedSession()
                 refreshDiag()
+            }
+        }
+    }
+
+    fun refreshDtcs() {
+        val session = liveSession ?: return
+        if (dtcBusy) return
+        dtcBusy = true
+        scope.launch {
+            try {
+                val result = ioMutex.withLock { session.readStoredDtcs() }
+                dtcCodes = result.codes
+                dtcError = result.error
+                if (result.error != null) {
+                    status = "DTC: ${result.error}"
+                }
+                refreshDiag()
+            } catch (e: Exception) {
+                dtcError = e.message
+                status = "DTC błąd: ${e.message}"
+                refreshDiag()
+            } finally {
+                dtcBusy = false
+            }
+        }
+    }
+
+    fun clearDtcsConfirmed() {
+        confirmClearDtc = false
+        val session = liveSession ?: return
+        if (dtcBusy) return
+        dtcBusy = true
+        scope.launch {
+            try {
+                val result = ioMutex.withLock { session.clearStoredDtcs() }
+                dtcCodes = result.codes
+                dtcError = result.error
+                status = if (result.error != null) {
+                    "Kasowanie DTC: ${result.error}"
+                } else {
+                    "Kody DTC wyczyszczone"
+                }
+                refreshDiag()
+            } catch (e: Exception) {
+                dtcError = e.message
+                status = "DTC clear błąd: ${e.message}"
+                refreshDiag()
+            } finally {
+                dtcBusy = false
             }
         }
     }
@@ -185,6 +252,9 @@ fun ObdDashboardScreen(
         stopPolling()
         mode = LinkMode.Disconnected
         readings = StandardPids.dashboard.map { PidReading(it, value = null) }
+        dtcCodes = emptyList()
+        dtcError = null
+        liveSession = null
         status = "Brak połączenia z ELM327"
         refreshDiag()
     }
@@ -199,6 +269,29 @@ fun ObdDashboardScreen(
             stopPolling()
             diag.endPersistedSession()
         }
+    }
+
+    if (confirmClearDtc) {
+        AlertDialog(
+            onDismissRequest = { confirmClearDtc = false },
+            title = { Text("Skasować kody DTC?") },
+            text = {
+                Text(
+                    "Mode 04 wyczyści zapisane błędy w sterowniku. " +
+                        "Używaj po naprawie — na Aveo potwierdź, że to zamierzone.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { clearDtcsConfirmed() }) {
+                    Text("Kasuj DTC")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClearDtc = false }) {
+                    Text("Anuluj")
+                }
+            },
+        )
     }
 
     if (showDevicePicker) {
@@ -399,6 +492,16 @@ fun ObdDashboardScreen(
                 PidCard(reading)
             }
 
+            if (mode != LinkMode.Disconnected) {
+                DtcPanel(
+                    codes = dtcCodes,
+                    error = dtcError,
+                    busy = dtcBusy,
+                    onRefresh = { refreshDtcs() },
+                    onClear = { confirmClearDtc = true },
+                )
+            }
+
             if (showDiag) {
                 DiagPanel(
                     lines = diagLines,
@@ -411,6 +514,65 @@ fun ObdDashboardScreen(
                 )
             }
             Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun DtcPanel(
+    codes: List<DtcCode>,
+    error: String?,
+    busy: Boolean,
+    onRefresh: () -> Unit,
+    onClear: () -> Unit,
+) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Błędy DTC (${codes.size})",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = onRefresh, enabled = !busy) {
+                        Text(if (busy) "…" else "Odśwież")
+                    }
+                    TextButton(onClick = onClear, enabled = !busy) {
+                        Text("Kasuj")
+                    }
+                }
+            }
+            Text(
+                "Mode 03 odczyt / Mode 04 kasowanie (po potwierdzeniu)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            error?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
+            }
+            Spacer(Modifier.height(8.dp))
+            if (codes.isEmpty() && error == null) {
+                Text("Brak zapisanych kodów", style = MaterialTheme.typography.bodyMedium)
+            } else {
+                codes.forEach { dtc ->
+                    Column(Modifier.padding(vertical = 6.dp)) {
+                        Text(dtc.code, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            dtc.descriptionPl,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
         }
     }
 }

@@ -1,11 +1,11 @@
 package app.brykaobd.obd
 
 /**
- * Fake ELM that answers AT with OK and Mode 01 with canned universal-PID frames.
- * Used for UI demo until Bluetooth Classic is wired.
+ * Fake ELM that answers AT / Mode 01 / Mode 03–04 for UI demo without hardware.
  */
 class DemoElmTransport : Transport {
     private var lastCommand: String = ""
+    private var demoDtcsCleared: Boolean = false
 
     override suspend fun write(data: String) {
         lastCommand = data.trim().uppercase().removeSuffix("\r")
@@ -23,11 +23,22 @@ class DemoElmTransport : Transport {
             "010F" -> "41 0F 4B\r\n>" // 35°C
             "0111" -> "41 11 40\r\n>" // ~25% throttle
             "0142" -> "41 42 36 B0\r\n>" // 14.000 V
+            "03" -> if (demoDtcsCleared) {
+                "NO DATA\r\n>"
+            } else {
+                // count=2, P0301 (03 01), P0420 (04 20)
+                "43 02 03 01 04 20\r\n>"
+            }
+            "04" -> {
+                demoDtcsCleared = true
+                "44\r\n>"
+            }
             else -> "NO DATA\r\n>"
         }
     }
 
     override fun close() {
         lastCommand = ""
+        demoDtcsCleared = false
     }
 }

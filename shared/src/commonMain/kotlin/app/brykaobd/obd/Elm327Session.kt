@@ -1,7 +1,7 @@
 package app.brykaobd.obd
 
 /**
- * Minimal ELM327 session: AT init + Mode 01 PID reads over [Transport].
+ * Minimal ELM327 session: AT init + Mode 01 PID + Mode 03/04 DTC over [Transport].
  * Pass [diag] (and prefer [LoggingTransport]) for detailed Aveo / clone diagnostics.
  */
 class Elm327Session(
@@ -22,24 +22,19 @@ class Elm327Session(
             } else {
                 diag.info("AT", "$cmd → OK / banner")
             }
-            // ATZ banners are fine; real link errors matter later on OBD requests
-            if (err != null && cmd != "ATZ" && cmd != "ATSP0") {
-                // continue — many clones still work after noisy AT replies
-            }
         }
         initialized = true
         diag.info("SESSION", "ELM init done")
     }
 
     suspend fun readPid(pid: PidDefinition): PidReading {
-        if (!initialized) initialize()
+        ensureInit()
         transport.write("${pid.mode01Request()}\r")
         val reply = transport.readUntilPrompt()
         val err = ElmParser.isErrorResponse(reply)
         if (err != null) {
-            val reading = PidReading(pid, value = null, error = err)
             diag.pidResult(pid.idHex, pid.nameEn, null, err)
-            return reading
+            return PidReading(pid, value = null, error = err)
         }
         val data = ElmParser.extractMode01Data(reply, pid.id)
         if (data == null) {
@@ -58,9 +53,44 @@ class Elm327Session(
     suspend fun readDashboard(pids: List<PidDefinition> = StandardPids.dashboard): List<PidReading> =
         pids.map { readPid(it) }
 
+    suspend fun readStoredDtcs(): DtcReadResult {
+        ensureInit()
+        transport.write("03\r")
+        val reply = transport.readUntilPrompt()
+        val err = ElmParser.isErrorResponse(reply)
+        if (err != null && err != "NO DATA") {
+            diag.warn("DTC", "Mode 03 → $err")
+            return DtcReadResult(error = err)
+        }
+        if (err == "NO DATA") {
+            diag.info("DTC", "Mode 03 → brak kodów (NO DATA)")
+            return DtcReadResult(codes = emptyList())
+        }
+        val codes = ElmParser.parseMode03Dtcs(reply).map { DtcCode(it) }
+        diag.info("DTC", "Mode 03 → ${codes.size} kod(ów): ${codes.joinToString { it.code }}")
+        return DtcReadResult(codes = codes)
+    }
+
+    suspend fun clearStoredDtcs(): DtcReadResult {
+        ensureInit()
+        transport.write("04\r")
+        val reply = transport.readUntilPrompt()
+        if (!ElmParser.isMode04Success(reply)) {
+            val err = ElmParser.isErrorResponse(reply) ?: "CLEAR_FAILED"
+            diag.warn("DTC", "Mode 04 → $err")
+            return DtcReadResult(error = err)
+        }
+        diag.info("DTC", "Mode 04 → wyczyszczono, ponowny odczyt 03")
+        return readStoredDtcs()
+    }
+
     fun close() {
         diag.info("SESSION", "Session close")
         transport.close()
         initialized = false
+    }
+
+    private suspend fun ensureInit() {
+        if (!initialized) initialize()
     }
 }
