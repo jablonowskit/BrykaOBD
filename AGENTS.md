@@ -16,10 +16,8 @@ Plany / notatki w `__README/` **nie** zastępują `openspec/specs/`.
 
 ## Dostarczanie na telefon (obowiązkowa wiedza)
 
-**Skill:** [`.claude/skills/wgraj-na-telefon/SKILL.md`](.claude/skills/wgraj-na-telefon/SKILL.md)  
-**Skrypt (preferowany):** `powershell -ExecutionPolicy Bypass -File scripts/wgraj-na-telefon.ps1`  
-(kopia skill Cursor: [`.cursor/skills/wgraj-na-telefon/`](.cursor/skills/wgraj-na-telefon/)).
-
+**Skill:** [`.cursor/skills/wgraj-na-telefon/SKILL.md`](.cursor/skills/wgraj-na-telefon/SKILL.md)  
+**Skrypt:** `powershell -ExecutionPolicy Bypass -File scripts/wgraj-na-telefon.ps1`  
 Referencja: [__README/003_release_phone.md](__README/003_release_phone.md).
 
-Gdy user mówi „wgraj / zainstaluj / na telefon” → przeczytaj skill → **uruchom skrypt** (weryfikuje CI dla HEAD + `lastUpdateTime`). Konflikt podpisów: `-AllowUninstall` dopiero po ostrzeżeniu o kasowaniu logów diag.
+Gdy user mówi „wgraj / zainstaluj / na telefon” → przeczytaj skill → **uruchom skrypt** (CI dla HEAD + `lastUpdateTime`). Konflikt podpisów: `-AllowUninstall` dopiero po ostrzeżeniu o kasowaniu logów diag.

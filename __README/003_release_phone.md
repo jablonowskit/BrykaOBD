@@ -3,7 +3,7 @@
 Instrukcja dla **agentów LLM** i developerów: jak dostarczyć zmianę na telefon testowy.
 Lokalnie zwykle **brak Android SDK** — APK buduje **GitHub Actions**, nie Gradle na hoście.
 
-**Skill operacyjny:** [`.claude/skills/wgraj-na-telefon/SKILL.md`](../.claude/skills/wgraj-na-telefon/SKILL.md)  
+**Skill:** [`.cursor/skills/wgraj-na-telefon/SKILL.md`](../.cursor/skills/wgraj-na-telefon/SKILL.md)  
 
 **Preferowany one-liner:**
 ```powershell
