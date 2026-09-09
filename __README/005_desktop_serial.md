@@ -21,3 +21,5 @@
 - Zły baud → timeout na `>` (klony bywają 9600/115200).
 - Port zajęty przez inny program (Car Scanner) → nie otworzy COM.
 - Numer COM zmienia się po ponownym sparowaniu.
+- **JDK 25 + jSerialComm ≤2.11.2**: `Can't load ARM 64-bit .dll on a AMD 64-bit platform` przy „Połącz ELM”. Fix: zależność **≥2.11.4**; po upgrade usuń cache:
+  `%USERPROFILE%\.jSerialComm` oraz `%TEMP%\jSerialComm`.

@@ -7,7 +7,7 @@ androidCompileSdk = "36"
 androidMinSdk = "26"
 androidTargetSdk = "36"
 androidxActivity = "1.12.3"
-jserialcomm = "2.11.0"
+jserialcomm = "2.11.4"
 androidxCore = "1.17.0"
 
 [libraries]
