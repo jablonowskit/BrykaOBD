@@ -1,0 +1,21 @@
+## ADDED Requirements
+
+### Requirement: Gauge and DPF dashboard tabs
+
+The UI SHALL present two primary live-data tabs: **Zegary** (gauge metrics) and **DPF**. While connected (Demo or live ELM), the active tab SHALL poll its metric list through the shared session mutex. Instant L/100km SHALL be derived from Mode 01 fuel rate (`5E`) and speed when speed is at least 5 km/h; otherwise the UI MUST show an empty value.
+
+#### Scenario: Switch to DPF tab
+
+- GIVEN a connected Demo or live session
+- WHEN the user selects the DPF tab
+- THEN the UI polls DPF metrics (Mode 01 `7C` and Mode 22 candidates) and shows NO DATA / PARSE without crashing when the ECU omits a DID
+
+### Requirement: Mode 22 manufacturer DID reads
+
+The session SHALL send Mode 22 requests as `22` + four hex DID digits and decode positive responses starting with `62` + DID bytes. Missing DIDs (`NO DATA`) MUST surface as a per-metric error and MUST NOT abort the rest of the poll cycle. Raw RX MUST remain available via the existing diag log / archive path for Aveo discovery.
+
+#### Scenario: Demo soot load
+
+- GIVEN Demo ELM transport
+- WHEN the session reads DID `3275`
+- THEN the decoded soot load is a percentage value suitable for the DPF tab

@@ -28,13 +28,19 @@ Before the first Mode 01 PID read, the session MUST send the AT init sequence `A
 
 ### Requirement: Universal Mode 01 dashboard PIDs
 
-The live dashboard SHALL poll at least these Mode 01 PIDs with SAE J1979-style decoding: RPM (`0C`), speed (`0D`), coolant (`05`), engine load (`04`), throttle (`11`), intake air temp (`0F`), control module voltage (`42`). Manufacturer-specific / GM DPF PIDs are out of scope for this capability.
+The live **Zegary** tab SHALL poll Mode 01 metrics for driving context: speed (`0D`), RPM (`0C`), coolant (`05`), throttle (`11`), control module voltage (`42`), and fuel rate (`5E`) when supported. The session MUST still support the classic `StandardPids.dashboard` list (including engine load `04` and intake `0F`) for compatibility and tests. Manufacturer-specific DPF DIDs are covered by the `dpf` capability (Mode 22 + optional Mode 01 `7C`).
 
 #### Scenario: RPM decode
 
 - GIVEN Mode 01 response data bytes `1A F8` for PID `0C`
 - WHEN the RPM decoder runs
 - THEN the value is `1726` rpm
+
+#### Scenario: Fuel rate missing on diesel
+
+- GIVEN an ELM reply containing `NO DATA` for PID `5E`
+- WHEN the gauges tab polls fuel rate
+- THEN that metric shows an error/empty value and other gauges continue updating
 
 ### Requirement: Error and empty OBD responses
 

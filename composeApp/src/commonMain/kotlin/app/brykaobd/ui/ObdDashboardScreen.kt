@@ -20,6 +20,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,12 +45,13 @@ import app.brykaobd.obd.DiagEntry
 import app.brykaobd.obd.DiagLevel
 import app.brykaobd.obd.DiagSessionInfo
 import app.brykaobd.obd.DiagShareFacade
+import app.brykaobd.obd.DpfPids
 import app.brykaobd.obd.DtcCode
 import app.brykaobd.obd.Elm327Session
+import app.brykaobd.obd.ExtPidReading
+import app.brykaobd.obd.GaugePids
 import app.brykaobd.obd.LoggingTransport
 import app.brykaobd.obd.ObdDiagLog
-import app.brykaobd.obd.PidReading
-import app.brykaobd.obd.StandardPids
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -62,6 +65,11 @@ private enum class LinkMode {
     Live,
 }
 
+private enum class DashTab {
+    Gauges,
+    Dpf,
+}
+
 @Composable
 fun ObdDashboardScreen(
     bluetooth: BluetoothElmFacade? = null,
@@ -69,9 +77,14 @@ fun ObdDashboardScreen(
     diagShare: DiagShareFacade? = null,
 ) {
     var mode by remember { mutableStateOf(LinkMode.Disconnected) }
-    var readings by remember {
-        mutableStateOf(StandardPids.dashboard.map { PidReading(it, value = null) })
+    var dashTab by remember { mutableStateOf(DashTab.Gauges) }
+    var gaugeReadings by remember {
+        mutableStateOf(GaugePids.pollList.map { ExtPidReading(it, value = null) })
     }
+    var dpfReadings by remember {
+        mutableStateOf(DpfPids.pollList.map { ExtPidReading(it, value = null) })
+    }
+    var instantL100 by remember { mutableStateOf<Double?>(null) }
     var status by remember { mutableStateOf("Brak połączenia z ELM327") }
     var showDevicePicker by remember { mutableStateOf(false) }
     var devices by remember { mutableStateOf<List<BluetoothAdapterInfo>>(emptyList()) }
@@ -95,6 +108,9 @@ fun ObdDashboardScreen(
     var pollJob by remember { mutableStateOf<Job?>(null) }
     val scroll = rememberScrollState()
     val diagScroll = rememberScrollState()
+
+    fun emptyGauges() = GaugePids.pollList.map { ExtPidReading(it, value = null) }
+    fun emptyDpf() = DpfPids.pollList.map { ExtPidReading(it, value = null) }
 
     fun refreshDiag() {
         diagLines = diag.snapshot()
@@ -136,7 +152,18 @@ fun ObdDashboardScreen(
                 dtcError = firstDtcs.error
                 refreshDiag()
                 while (isActive) {
-                    readings = ioMutex.withLock { session.readDashboard() }
+                    when (dashTab) {
+                        DashTab.Gauges -> {
+                            val next = ioMutex.withLock { session.readExtList(GaugePids.pollList) }
+                            gaugeReadings = next
+                            val rate = next.firstOrNull { it.pid.request == GaugePids.fuelRate.request }?.value
+                            val spd = next.firstOrNull { it.pid.request == GaugePids.speed.request }?.value
+                            instantL100 = GaugePids.instantLitersPer100km(rate, spd)
+                        }
+                        DashTab.Dpf -> {
+                            dpfReadings = ioMutex.withLock { session.readExtList(DpfPids.pollList) }
+                        }
+                    }
                     refreshDiag()
                     delay(400)
                 }
@@ -144,7 +171,9 @@ fun ObdDashboardScreen(
                 diag.error("UI", e.message ?: e.toString())
                 status = "Błąd: ${e.message}"
                 mode = LinkMode.Disconnected
-                readings = StandardPids.dashboard.map { PidReading(it, value = null) }
+                gaugeReadings = emptyGauges()
+                dpfReadings = emptyDpf()
+                instantL100 = null
                 dtcCodes = emptyList()
                 dtcError = null
                 liveSession = null
@@ -251,7 +280,9 @@ fun ObdDashboardScreen(
         diag.info("UI", "Disconnected by user")
         stopPolling()
         mode = LinkMode.Disconnected
-        readings = StandardPids.dashboard.map { PidReading(it, value = null) }
+        gaugeReadings = emptyGauges()
+        dpfReadings = emptyDpf()
+        instantL100 = null
         dtcCodes = emptyList()
         dtcError = null
         liveSession = null
@@ -482,14 +513,40 @@ fun ObdDashboardScreen(
 
         Spacer(Modifier.height(12.dp))
 
+        PrimaryTabRow(selectedTabIndex = if (dashTab == DashTab.Gauges) 0 else 1) {
+            Tab(
+                selected = dashTab == DashTab.Gauges,
+                onClick = { dashTab = DashTab.Gauges },
+                text = { Text("Zegary") },
+            )
+            Tab(
+                selected = dashTab == DashTab.Dpf,
+                onClick = { dashTab = DashTab.Dpf },
+                text = { Text("DPF") },
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
+
         Column(
             Modifier
                 .weight(1f)
                 .verticalScroll(scroll),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            readings.forEach { reading ->
-                PidCard(reading)
+            when (dashTab) {
+                DashTab.Gauges -> {
+                    gaugeReadings.forEach { ExtPidCard(it) }
+                    InstantFuelCard(instantL100)
+                }
+                DashTab.Dpf -> {
+                    Text(
+                        "Mode 01 7C + Mode 22 (GM/Opel kandydaci). Na Aveo często NO DATA — raw w logu.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    dpfReadings.forEach { ExtPidCard(it) }
+                }
             }
 
             if (mode != LinkMode.Disconnected) {
@@ -514,6 +571,81 @@ fun ObdDashboardScreen(
                 )
             }
             Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun InstantFuelCard(litersPer100: Double?) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Zużycie chwilowe", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "z L/h i prędkości (≥5 km/h)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    litersPer100?.let { ((it * 10).toLong() / 10.0).toString() } ?: "—",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text("L/100km", style = MaterialTheme.typography.labelMedium)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExtPidCard(reading: ExtPidReading) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(reading.pid.namePl, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "${reading.pid.request} · ${reading.pid.nameEn}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                reading.error?.let { err ->
+                    Text(
+                        err,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    reading.displayValue,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                if (reading.pid.unit.isNotBlank()) {
+                    Text(reading.pid.unit, style = MaterialTheme.typography.labelMedium)
+                }
+            }
         }
     }
 }
@@ -637,46 +769,6 @@ private fun DiagPanel(
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PidCard(reading: PidReading) {
-    Card(
-        Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(reading.pid.namePl, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "PID ${reading.pid.idHex} · ${reading.pid.nameEn}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                reading.error?.let { err ->
-                    Text(
-                        err,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    reading.displayValue,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(reading.pid.unit, style = MaterialTheme.typography.labelMedium)
             }
         }
     }

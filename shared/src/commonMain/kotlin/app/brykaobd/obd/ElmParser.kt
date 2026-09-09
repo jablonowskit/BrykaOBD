@@ -17,7 +17,8 @@ object ElmParser {
                     val t = it.trim()
                     t.startsWith("41", ignoreCase = true) ||
                         t.startsWith("43", ignoreCase = true) ||
-                        t.startsWith("44", ignoreCase = true)
+                        t.startsWith("44", ignoreCase = true) ||
+                        t.startsWith("62", ignoreCase = true)
                 } -> "?"
             else -> null
         }
@@ -26,20 +27,32 @@ object ElmParser {
     /**
      * Extracts data bytes after `41 <PID>` from a multi-line ELM response.
      */
-    fun extractMode01Data(response: String, pidId: Int): ByteArray? {
+    fun extractMode01Data(response: String, pidId: Int): ByteArray? =
+        extractPositiveResponseData(response, responseService = 0x41, matchIds = intArrayOf(pidId))
+
+    /**
+     * Extracts payload after positive response header, e.g. Mode 01 `41 XX …`
+     * or Mode 22 `62 XX XX …` (DID hi/lo).
+     */
+    fun extractPositiveResponseData(
+        response: String,
+        responseService: Int,
+        matchIds: IntArray,
+    ): ByteArray? {
         isErrorResponse(response)?.let { return null }
-        val pidHex = pidId.toString(16).padStart(2, '0')
         val bytes = allHexBytes(response)
-        if (bytes.size < 2) return null
-        for (i in 0 until bytes.size - 1) {
-            val service = bytes[i].toInt() and 0xFF
-            val pid = bytes[i + 1].toInt() and 0xFF
-            if (service == 0x41 && pid == pidId) {
-                return bytes.drop(i + 2).toByteArray()
+        val headerLen = 1 + matchIds.size
+        if (bytes.size < headerLen) return null
+        for (i in 0..bytes.size - headerLen) {
+            if ((bytes[i].toInt() and 0xFF) != responseService) continue
+            var matched = true
+            for (j in matchIds.indices) {
+                if ((bytes[i + 1 + j].toInt() and 0xFF) != matchIds[j]) {
+                    matched = false
+                    break
+                }
             }
-            if (service == 0x41 && pidHex.equals(pid.toString(16).padStart(2, '0'), ignoreCase = true)) {
-                return bytes.drop(i + 2).toByteArray()
-            }
+            if (matched) return bytes.drop(i + headerLen).toByteArray()
         }
         return null
     }

@@ -1,7 +1,7 @@
 package app.brykaobd.obd
 
 /**
- * Minimal ELM327 session: AT init + Mode 01 PID + Mode 03/04 DTC over [Transport].
+ * Minimal ELM327 session: AT init + Mode 01/22 PID + Mode 03/04 DTC over [Transport].
  * Pass [diag] (and prefer [LoggingTransport]) for detailed Aveo / clone diagnostics.
  */
 class Elm327Session(
@@ -52,6 +52,36 @@ class Elm327Session(
 
     suspend fun readDashboard(pids: List<PidDefinition> = StandardPids.dashboard): List<PidReading> =
         pids.map { readPid(it) }
+
+    suspend fun readExtPid(pid: ExtPidDefinition): ExtPidReading {
+        ensureInit()
+        transport.write("${pid.request}\r")
+        val reply = transport.readUntilPrompt()
+        val err = ElmParser.isErrorResponse(reply)
+        if (err != null) {
+            diag.pidResult(pid.idHex, pid.nameEn, null, err)
+            return ExtPidReading(pid, value = null, error = err)
+        }
+        val data = ElmParser.extractPositiveResponseData(
+            reply,
+            responseService = pid.responseService,
+            matchIds = pid.matchIds,
+        )
+        if (data == null) {
+            diag.pidResult(pid.idHex, pid.nameEn, null, "PARSE")
+            return ExtPidReading(pid, value = null, error = "PARSE")
+        }
+        val value = pid.decode(data)
+        if (value == null) {
+            diag.pidResult(pid.idHex, pid.nameEn, null, "DECODE")
+            return ExtPidReading(pid, value = null, error = "DECODE")
+        }
+        diag.pidResult(pid.idHex, pid.nameEn, value, null)
+        return ExtPidReading(pid, value = value)
+    }
+
+    suspend fun readExtList(pids: List<ExtPidDefinition>): List<ExtPidReading> =
+        pids.map { readExtPid(it) }
 
     suspend fun readStoredDtcs(): DtcReadResult {
         ensureInit()
