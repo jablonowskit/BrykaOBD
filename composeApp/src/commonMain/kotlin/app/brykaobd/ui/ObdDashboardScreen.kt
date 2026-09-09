@@ -226,22 +226,22 @@ fun ObdDashboardScreen(
     fun openDevicePicker() {
         val facade = bluetooth
         if (facade == null) {
-            status = "Bluetooth Classic dostępny tylko na Androidzie"
+            status = "Brak warstwy łącza ELM (BT/serial)"
             diag.warn("UI", status)
             refreshDiag()
             return
         }
         if (!facade.isBluetoothUsable()) {
-            status = "Włącz Bluetooth w telefonie"
+            status = "Brak łącza (włącz Bluetooth / podłącz adapter COM)"
             diag.warn("UI", status)
             refreshDiag()
             return
         }
         devices = facade.bondedAdapters()
-        diag.info("BT", "Bonded devices: ${devices.size}")
+        diag.info("LINK", "Dostępne łącza: ${devices.size}")
         refreshDiag()
         if (devices.isEmpty()) {
-            status = "Brak sparowanych urządzeń — sparuj ELM w ustawieniach systemu"
+            status = "Brak portów/urządzeń — sparuj ELM (BT) albo podłącz USB-serial"
             return
         }
         showDevicePicker = true
@@ -297,11 +297,11 @@ fun ObdDashboardScreen(
     if (showDevicePicker) {
         AlertDialog(
             onDismissRequest = { showDevicePicker = false },
-            title = { Text("Wybierz ELM327") },
+            title = { Text("Wybierz ELM / port") },
             text = {
                 Column {
                     Text(
-                        "Urządzenia sparowane w systemie:",
+                        "Android: urządzenia BT sparowane w systemie. Windows: porty COM (BT SPP lub USB).",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(Modifier.height(8.dp))

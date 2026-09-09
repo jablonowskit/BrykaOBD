@@ -7,7 +7,7 @@
 
 Źródło prawdy o tym, **co apka SHALL robić**: [openspec/README.md](openspec/README.md).
 
-- Bieżące capability: `openspec/specs/{obd-session,android-bt,diag-archive,dtc}/spec.md`
+- Bieżące capability: `openspec/specs/{obd-session,android-bt,diag-archive,dtc,desktop-serial}/spec.md`
 - **Nowe / zmienione zachowanie** → utwórz `openspec/changes/<kebab-id>/` (proposal + delta), zaimplementuj, zmerguj delty do `specs/`, zarchiwizuj change.
 - **Drobnica** (literówka, ikona, docs-only, refactor bez zmiany zachowania) → bez OpenSpec.
 - Szablon: [openspec/changes/_template/](openspec/changes/_template/).

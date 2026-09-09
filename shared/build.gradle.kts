@@ -25,5 +25,8 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.androidx.core.ktx)
         }
+        jvmMain.dependencies {
+            implementation(libs.jserialcomm)
+        }
     }
 }

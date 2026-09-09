@@ -56,5 +56,5 @@ Przy każdym pushu / PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
 
 ## Status
 
-Repo na GitHub + dashboard PID + **Android Classic SPP** + log diagnostyczny (**UI + plik sesji + Logcat `BrykaOBD`**). Po jeździe: **Zapisane sesje** / Udostępnij / `adb pull …/files/diag/`. APK buduje CI.
+Android Classic SPP + DTC + logi plików. **Desktop Windows: Połącz ELM przez COM** (jSerialComm, baud 38400). Laptop w aucie: sparuj dongle → w systemie powstaje COMx → uruchom `composeApp` desktop → Połącz ELM. Logi: `%USERPROFILE%\.brykaobd\diag\`.
 

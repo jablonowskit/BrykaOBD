@@ -9,7 +9,8 @@ data class BluetoothAdapterInfo(
 )
 
 /**
- * Platform bridge for Classic SPP. Null / unavailable on desktop until serial is wired.
+ * Platform bridge for Classic SPP (Android) or serial/COM (desktop).
+ * [BluetoothAdapterInfo.address] is MAC on Android and system port name (e.g. COM3) on desktop.
  */
 interface BluetoothElmFacade {
     fun isBluetoothUsable(): Boolean

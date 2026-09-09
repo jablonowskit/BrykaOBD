@@ -62,7 +62,8 @@ composeApp/      jeden UI (android + desktop)
 6. **Trwały zapis sesji** (plik + Zapisane sesje / Udostępnij) — done
 7. **Mode 03/04 DTC** — panel błędów + kasowanie z potwierdzeniem — done
 8. Aveo 1.3D 2012 checklist (telefon w aucie)
-9. Desktop serial (Windows / Linux / macOS)
+9. **Desktop serial (Windows COM)** — Połącz ELM na laptopie — done
+10. Linux/macOS serial — ten sam kod JVM (weryfikacja później)
 
 ### Bluetooth na telefonie
 1. Sparuj ELM327 w ustawieniach Androida.
