@@ -1,3 +1,9 @@
-# Placeholder
+# Smoke / developerskie
 
-Smoke testy trafią tu jako `NNN_*.test.*` (oraz w `shared` commonTest po szkielecie KMP).
+Logika OBD: testy w `shared/src/commonTest` (np. `FakeTransportTest`).
+
+Uruchomienie:
+
+```powershell
+.\gradlew.bat :shared:jvmTest
+```

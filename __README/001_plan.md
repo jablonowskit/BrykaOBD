@@ -47,9 +47,9 @@ composeApp/      jeden UI (android + desktop)
 
 ## Kolejność
 
-1. Bootstrap GitHub (ten dokument) — done przy pierwszym pushu
-2. Szkielet KMP + Compose
-3. Mapy + ELM + FakeTransport + testy
+1. Bootstrap GitHub — done
+2. Szkielet KMP + Compose (`shared`, `composeApp`, `androidApp`) — done (minimalny UI)
+3. Mapy + ELM + testy — next
 4. Serial Windows E2E
 5. Aveo 1.3D 2012 checklist
 6. Linux/macOS + Android SPP

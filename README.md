@@ -37,6 +37,14 @@ Wzór katalogów jak w innych projektach (`D:\github\<Nazwa>` → `github.com/ja
 - [__README/001_plan.md](__README/001_plan.md) — plan, architektura, znane problemy
 - [AGENTS.md](AGENTS.md) — wskazówki dla agentów LLM
 
+## Moduły
+
+| Moduł | Rola |
+|-------|------|
+| `shared` | Transport, FakeTransport, (ELM/PID/DTC w toku) |
+| `composeApp` | Wspólny UI Compose (desktop + Android library) |
+| `androidApp` | Wejście aplikacji Android |
+
 ## Status
 
-Bootstrap repo — szkielet KMP i protokół ELM w toku.
+Repo na GitHub + szkielet KMP/Compose. Następne: protokół ELM + mapy PID/DTC + serial Windows.
