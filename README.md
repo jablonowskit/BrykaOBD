@@ -53,4 +53,5 @@ Przy każdym pushu / PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
 
 ## Status
 
-Repo na GitHub + szkielet KMP/Compose. Następne: protokół ELM + mapy PID/DTC + Bluetooth Classic na telefonie.
+Repo na GitHub + szkielet KMP/Compose + ekran dashboardu (standardowe PID Mode 01). Następne: Bluetooth Classic SPP na telefonie.
+
