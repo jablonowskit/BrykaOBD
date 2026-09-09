@@ -48,6 +48,7 @@ composeApp/      jeden UI (android + desktop)
 
 ## Specyfikacja
 
+- OpenSpec (zachowanie): [../openspec/README.md](../openspec/README.md) — patrz też [004_openspec.md](./004_openspec.md)
 - ELM327 datasheet: https://www.elmelectronics.com/wp-content/uploads/2016/07/ELM327DS.pdf
 - PID/DTC: publiczne zestawienia J1979 / J2012
 
