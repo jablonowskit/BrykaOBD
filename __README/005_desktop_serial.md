@@ -8,11 +8,11 @@
 
 1. Sparuj ELM327 w Windows (Classic) **albo** podłącz USB-ELM.
 2. W Menedżerze urządzeń sprawdź port (`COMx`).
-3. Uruchom desktop:
+3. Uruchom desktop (z katalogu repo):
    ```powershell
-   .\scripts\uruchom-desktop.cmd
+   .\uruchom-desktop.cmd
    ```
-   (albo `powershell -ExecutionPolicy Bypass -File scripts/uruchom-desktop.ps1` — samo `.\*.ps1` często blokuje ExecutionPolicy)
+   (przelotka → `scripts\uruchom-desktop.cmd` → `.ps1` z Bypass)
 4. **Połącz ELM** → wybierz `COMx`.
 5. Baud domyślnie **38400**. Logi: `%USERPROFILE%\.brykaobd\diag\`.
 
