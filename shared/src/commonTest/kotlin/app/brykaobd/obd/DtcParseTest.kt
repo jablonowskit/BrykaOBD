@@ -41,6 +41,16 @@ class DtcParseTest {
     }
 
     @Test
+    fun catalogHasAveoAndDemoCodes() {
+        assertTrue(DtcCatalog.size >= 1500)
+        assertEquals("EGR — obwód zaworu / sterowanie", DtcCatalog.descriptionPl("P0403"))
+        assertEquals("Czujnik pozycji EGR A — sygnał za niski", DtcCatalog.descriptionPl("p0405"))
+        assertEquals("Sprawność katalizatora poniżej progu (bank 1)", DtcCatalog.descriptionPl("P0420"))
+        assertEquals("Driver Frontal Stage 1 Deployment Control", DtcCatalog.descriptionPl("B0001"))
+        assertEquals("Zapisany kod usterki", DtcCatalog.descriptionPl("P9999"))
+    }
+
+    @Test
     fun sessionReadsAndClearsDemoDtcs() = runBlocking {
         val diag = ObdDiagLog()
         val session = Elm327Session(LoggingTransport(DemoElmTransport(), diag), diag)

@@ -20,6 +20,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -49,12 +50,15 @@ import app.brykaobd.obd.DpfPids
 import app.brykaobd.obd.DiscoveryResult
 import app.brykaobd.obd.DtcCode
 import app.brykaobd.obd.Elm327Session
+import app.brykaobd.obd.ExtPidDefinition
 import app.brykaobd.obd.ExtPidReading
 import app.brykaobd.obd.GaugePids
 import app.brykaobd.obd.LoggingTransport
 import app.brykaobd.obd.ObdAddress
 import app.brykaobd.obd.ObdDiagLog
 import app.brykaobd.obd.PidDiscoveryMap
+import app.brykaobd.obd.SensorCatalog
+import app.brykaobd.obd.VehicleIdentity
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -69,8 +73,10 @@ private enum class LinkMode {
 }
 
 private enum class DashTab {
+    Session,
     Gauges,
     Dpf,
+    Search,
 }
 
 @Composable
@@ -80,21 +86,26 @@ fun ObdDashboardScreen(
     diagShare: DiagShareFacade? = null,
 ) {
     var mode by remember { mutableStateOf(LinkMode.Disconnected) }
-    var dashTab by remember { mutableStateOf(DashTab.Gauges) }
+    var dashTab by remember { mutableStateOf(DashTab.Session) }
     var gaugeReadings by remember {
         mutableStateOf(GaugePids.pollList.map { ExtPidReading(it, value = null) })
     }
     var dpfReadings by remember {
         mutableStateOf(DpfPids.pollList.map { ExtPidReading(it, value = null) })
     }
+    var searchQuery by remember { mutableStateOf("") }
+    var activeSensors by remember { mutableStateOf<List<ExtPidDefinition>>(emptyList()) }
+    var activeReadings by remember { mutableStateOf<List<ExtPidReading>>(emptyList()) }
+    var previewReadings by remember { mutableStateOf<Map<String, ExtPidReading>>(emptyMap()) }
     var instantL100 by remember { mutableStateOf<Double?>(null) }
+    var oilPressureBar by remember { mutableStateOf<Double?>(null) }
+    var vehicleIdentity by remember { mutableStateOf<VehicleIdentity?>(null) }
     var discoveryHits by remember { mutableStateOf<List<DiscoveryResult>>(emptyList()) }
     var discoveryBusy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("Brak połączenia z ELM327") }
     var showDevicePicker by remember { mutableStateOf(false) }
     var devices by remember { mutableStateOf<List<BluetoothAdapterInfo>>(emptyList()) }
     var diagLines by remember { mutableStateOf<List<DiagEntry>>(emptyList()) }
-    var showDiag by remember { mutableStateOf(true) }
     var showSessions by remember { mutableStateOf(false) }
     var sessions by remember { mutableStateOf<List<DiagSessionInfo>>(emptyList()) }
     var previewText by remember { mutableStateOf<String?>(null) }
@@ -149,7 +160,10 @@ fun ObdDashboardScreen(
                 session = open()
                 liveSession = session
                 session.initialize()
-                status = "Połączono: $label" +
+                status = "Odczyt pojazdu…"
+                refreshDiag()
+                vehicleIdentity = ioMutex.withLock { session.readVehicleIdentity() }
+                status = "Połączono: $label · ${vehicleIdentity?.displayLine ?: "Pojazd: —"}" +
                     (saved?.let { " · log ${it.fileName}" } ?: "")
                 refreshDiag()
                 status = "Sonda mapy PID/DID…"
@@ -160,7 +174,7 @@ fun ObdDashboardScreen(
                 }
                 discoveryHits = probed.filter { it.isHit }
                 discoveryBusy = false
-                status = "Połączono: $label · sonda ${discoveryHits.size}/${probed.size} hit" +
+                status = "Połączono: $label · ${vehicleIdentity?.displayLine ?: "Pojazd: —"} · sonda ${discoveryHits.size}/${probed.size}" +
                     (saved?.let { " · log ${it.fileName}" } ?: "")
                 refreshDiag()
                 val firstDtcs = ioMutex.withLock { session.readStoredDtcs() }
@@ -168,7 +182,28 @@ fun ObdDashboardScreen(
                 dtcError = firstDtcs.error
                 refreshDiag()
                 while (isActive) {
+                    if (activeSensors.isNotEmpty()) {
+                        val functional = activeSensors.filter { it.responseService == 0x41 }
+                        val ecm = activeSensors.filter { it.responseService == 0x62 }
+                        val collected = mutableListOf<ExtPidReading>()
+                        if (functional.isNotEmpty()) {
+                            collected += ioMutex.withLock {
+                                session.readExtList(functional, ObdAddress.Functional)
+                            }
+                        }
+                        if (ecm.isNotEmpty()) {
+                            collected += ioMutex.withLock {
+                                session.readExtList(ecm, ObdAddress.EcmPhysical)
+                            }
+                        }
+                        activeReadings = collected
+                    } else if (activeReadings.isNotEmpty()) {
+                        activeReadings = emptyList()
+                    }
                     when (dashTab) {
+                        DashTab.Session -> {
+                            // connect / DTC / log — no live PID poll
+                        }
                         DashTab.Gauges -> {
                             val next = ioMutex.withLock {
                                 session.readExtList(GaugePids.pollList, ObdAddress.Functional)
@@ -177,10 +212,54 @@ fun ObdDashboardScreen(
                             val rate = next.firstOrNull { it.pid.request == GaugePids.fuelRate.request }?.value
                             val spd = next.firstOrNull { it.pid.request == GaugePids.speed.request }?.value
                             instantL100 = GaugePids.instantLitersPer100km(rate, spd)
+                            val ecmExtras = ioMutex.withLock {
+                                session.readExtList(
+                                    listOf(DpfPids.sootLoad, GaugePids.oilPressure),
+                                    ObdAddress.EcmPhysical,
+                                )
+                            }
+                            ecmExtras.forEach { hit ->
+                                when (hit.pid.request) {
+                                    DpfPids.sootLoad.request -> {
+                                        dpfReadings = dpfReadings.map { r ->
+                                            if (r.pid.request == hit.pid.request) hit else r
+                                        }
+                                    }
+                                    GaugePids.oilPressure.request -> {
+                                        oilPressureBar = hit.value
+                                    }
+                                }
+                            }
                         }
                         DashTab.Dpf -> {
                             dpfReadings = ioMutex.withLock {
                                 session.readExtList(DpfPids.pollList, ObdAddress.EcmPhysical)
+                            }
+                        }
+                        DashTab.Search -> {
+                            val filtered = SensorCatalog.search(searchQuery)
+                            if (filtered.size in 1..19) {
+                                val activeReqs = activeSensors.map { it.request }.toSet()
+                                val toPreview = filtered.filter { it.request !in activeReqs }
+                                val map = mutableMapOf<String, ExtPidReading>()
+                                activeReadings
+                                    .filter { r -> filtered.any { it.request == r.pid.request } }
+                                    .forEach { map[it.pid.request] = it }
+                                val functional = toPreview.filter { it.responseService == 0x41 }
+                                val ecm = toPreview.filter { it.responseService == 0x62 }
+                                if (functional.isNotEmpty()) {
+                                    ioMutex.withLock {
+                                        session.readExtList(functional, ObdAddress.Functional)
+                                    }.forEach { map[it.pid.request] = it }
+                                }
+                                if (ecm.isNotEmpty()) {
+                                    ioMutex.withLock {
+                                        session.readExtList(ecm, ObdAddress.EcmPhysical)
+                                    }.forEach { map[it.pid.request] = it }
+                                }
+                                previewReadings = map
+                            } else {
+                                previewReadings = emptyMap()
                             }
                         }
                     }
@@ -193,9 +272,14 @@ fun ObdDashboardScreen(
                 mode = LinkMode.Disconnected
                 gaugeReadings = emptyGauges()
                 dpfReadings = emptyDpf()
+                activeSensors = emptyList()
+                activeReadings = emptyList()
+                previewReadings = emptyMap()
+                searchQuery = ""
                 instantL100 = null
+                oilPressureBar = null
+                vehicleIdentity = null
                 discoveryHits = emptyList()
-                discoveryBusy = false
                 discoveryBusy = false
                 dtcCodes = emptyList()
                 dtcError = null
@@ -306,9 +390,15 @@ fun ObdDashboardScreen(
         mode = LinkMode.Disconnected
         gaugeReadings = emptyGauges()
         dpfReadings = emptyDpf()
+        activeSensors = emptyList()
+        activeReadings = emptyList()
+        previewReadings = emptyMap()
+        searchQuery = ""
         instantL100 = null
+        oilPressureBar = null
         discoveryHits = emptyList()
         discoveryBusy = false
+        vehicleIdentity = null
         dtcCodes = emptyList()
         dtcError = null
         liveSession = null
@@ -511,57 +601,21 @@ fun ObdDashboardScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        Text("BrykaOBD", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text(
-            status,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
-        )
-
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        PrimaryTabRow(
+            selectedTabIndex = when (dashTab) {
+                DashTab.Session -> 0
+                DashTab.Gauges -> 1
+                DashTab.Dpf -> 2
+                DashTab.Search -> 3
+            },
         ) {
-            if (mode == LinkMode.Disconnected) {
-                if (bluetooth != null) {
-                    Button(onClick = { openDevicePicker() }) {
-                        Text("Połącz ELM")
-                    }
-                }
-                OutlinedButton(onClick = { startDemo() }) {
-                    Text("Demo PID")
-                }
-            } else {
-                OutlinedButton(onClick = { disconnect() }) {
-                    Text("Rozłącz")
-                }
-            }
-            OutlinedButton(onClick = { showDiag = !showDiag }) {
-                Text(if (showDiag) "Ukryj log" else "Log diag")
-            }
-        }
-        if (diagArchive != null) {
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { openSessions() }) {
-                    Text("Zapisane sesje")
-                }
-                activeFile?.let {
-                    Text(
-                        "Plik: $it",
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.align(Alignment.CenterVertically),
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        PrimaryTabRow(selectedTabIndex = if (dashTab == DashTab.Gauges) 0 else 1) {
+            Tab(
+                selected = dashTab == DashTab.Session,
+                onClick = { dashTab = DashTab.Session },
+                text = { Text("Sesja") },
+            )
             Tab(
                 selected = dashTab == DashTab.Gauges,
                 onClick = { dashTab = DashTab.Gauges },
@@ -572,121 +626,236 @@ fun ObdDashboardScreen(
                 onClick = { dashTab = DashTab.Dpf },
                 text = { Text("DPF") },
             )
+            Tab(
+                selected = dashTab == DashTab.Search,
+                onClick = { dashTab = DashTab.Search },
+                text = { Text("Szukaj") },
+            )
         }
 
         Spacer(Modifier.height(8.dp))
 
-        Column(
-            Modifier
-                .weight(1f)
-                .verticalScroll(scroll),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            when (dashTab) {
-                DashTab.Gauges -> {
-                    gaugeReadings.forEach { ExtPidCard(it) }
-                    InstantFuelCard(instantL100)
-                }
-                DashTab.Dpf -> {
-                    Text(
-                        "Po połączeniu: auto-sonda mapy (Astra-J 1.3 + Mode 01). Mode 22 = ATSH7E0.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
-                            onClick = { runDiscoveryAgain() },
-                            enabled = mode != LinkMode.Disconnected && !discoveryBusy,
-                        ) {
-                            Text(if (discoveryBusy) "Sonda…" else "Sonda mapy")
-                        }
-                        Text(
-                            "Hity: ${discoveryHits.size}",
-                            style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.align(Alignment.CenterVertically),
-                        )
-                    }
-                    if (discoveryHits.isNotEmpty()) {
-                        Card(
-                            Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            ),
-                        ) {
-                            Column(Modifier.padding(12.dp)) {
-                                Text(
-                                    "Odkryte odpowiedzi (payload)",
-                                    fontWeight = FontWeight.SemiBold,
+        when (dashTab) {
+            DashTab.Gauges -> {
+                CarDashboardCluster(
+                    readings = gaugeReadings,
+                    instantL100 = instantL100,
+                    sootLoad = dpfReadings.firstOrNull { it.pid.request == DpfPids.sootLoad.request }?.value,
+                    oilPressureBar = oilPressureBar,
+                    dtcWarn = mode != LinkMode.Disconnected && (dtcCodes.isNotEmpty() || dtcError != null),
+                    dtcCount = dtcCodes.size,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                )
+            }
+            else -> {
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .verticalScroll(scroll),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    when (dashTab) {
+                        DashTab.Session -> {
+                            Text(
+                                status,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                if (mode == LinkMode.Disconnected) {
+                                    if (bluetooth != null) {
+                                        Button(onClick = { openDevicePicker() }) {
+                                            Text("Połącz ELM")
+                                        }
+                                    }
+                                    OutlinedButton(onClick = { startDemo() }) {
+                                        Text("Demo PID")
+                                    }
+                                } else {
+                                    OutlinedButton(onClick = { disconnect() }) {
+                                        Text("Rozłącz")
+                                    }
+                                }
+                            }
+                            if (diagArchive != null) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedButton(onClick = { openSessions() }) {
+                                        Text("Zapisane sesje")
+                                    }
+                                    activeFile?.let {
+                                        Text(
+                                            "Plik: $it",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            modifier = Modifier.align(Alignment.CenterVertically),
+                                        )
+                                    }
+                                }
+                            }
+                            VehicleIdentityCard(vehicleIdentity)
+                            if (mode != LinkMode.Disconnected) {
+                                DtcPanel(
+                                    codes = dtcCodes,
+                                    error = dtcError,
+                                    busy = dtcBusy,
+                                    onRefresh = { refreshDtcs() },
+                                    onClear = { confirmClearDtc = true },
                                 )
-                                discoveryHits.take(40).forEach { hit ->
-                                    Text(
-                                        "${hit.candidate.request} ${hit.candidate.namePl}: ${hit.payloadHex}",
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 11.sp,
-                                        modifier = Modifier.padding(top = 4.dp),
+                            }
+                            DiagPanel(
+                                lines = diagLines,
+                                fileHint = activeFile,
+                                onClear = {
+                                    diag.clear()
+                                    refreshDiag()
+                                },
+                                scrollState = diagScroll,
+                            )
+                        }
+                        DashTab.Dpf -> {
+                            Text(
+                                "Po połączeniu: auto-sonda mapy (Astra-J 1.3 + Mode 01). Mode 22 = ATSH7E0.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(
+                                    onClick = { runDiscoveryAgain() },
+                                    enabled = mode != LinkMode.Disconnected && !discoveryBusy,
+                                ) {
+                                    Text(if (discoveryBusy) "Sonda…" else "Sonda mapy")
+                                }
+                                Text(
+                                    "Hity: ${discoveryHits.size}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    modifier = Modifier.align(Alignment.CenterVertically),
+                                )
+                            }
+                            if (discoveryHits.isNotEmpty()) {
+                                Card(
+                                    Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    ),
+                                ) {
+                                    Column(Modifier.padding(12.dp)) {
+                                        Text(
+                                            "Odkryte odpowiedzi (payload)",
+                                            fontWeight = FontWeight.SemiBold,
+                                        )
+                                        discoveryHits.take(40).forEach { hit ->
+                                            Text(
+                                                "${hit.candidate.request} ${hit.candidate.namePl}: ${hit.payloadHex}",
+                                                fontFamily = FontFamily.Monospace,
+                                                fontSize = 11.sp,
+                                                modifier = Modifier.padding(top = 4.dp),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            dpfReadings.forEach { ExtPidCard(it) }
+                        }
+                        DashTab.Search -> {
+                            val filtered = SensorCatalog.search(searchQuery)
+                            val displayHits = filtered.take(40)
+                            val activeReqs = activeSensors.map { it.request }.toSet()
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                label = { Text("Szukaj czujnika") },
+                                placeholder = { Text("np. olej, DPF, 015C") },
+                            )
+                            Text(
+                                if (filtered.size < 20 && mode != LinkMode.Disconnected) {
+                                    "Trafienia: ${filtered.size} · podgląd live"
+                                } else {
+                                    "Trafienia: ${filtered.size}" +
+                                        if (filtered.size >= 20) " (zwęż filtr, aby zobaczyć podgląd)" else ""
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            displayHits.forEach { pid ->
+                                val already = pid.request in activeReqs
+                                val preview = previewReadings[pid.request]
+                                SensorHitRow(
+                                    pid = pid,
+                                    preview = preview,
+                                    alreadyActive = already,
+                                    onAdd = {
+                                        if (!already) {
+                                            activeSensors = activeSensors + pid
+                                        }
+                                    },
+                                )
+                            }
+                            if (activeSensors.isNotEmpty()) {
+                                Text(
+                                    "Aktywne odczyty",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(top = 8.dp),
+                                )
+                                activeSensors.forEach { pid ->
+                                    val reading = activeReadings.firstOrNull { it.pid.request == pid.request }
+                                        ?: ExtPidReading(pid, value = null)
+                                    ActiveSensorCard(
+                                        reading = reading,
+                                        onRemove = {
+                                            activeSensors = activeSensors.filter { it.request != pid.request }
+                                            activeReadings = activeReadings.filter { it.pid.request != pid.request }
+                                        },
                                     )
                                 }
                             }
                         }
+                        DashTab.Gauges -> Unit
                     }
-                    dpfReadings.forEach { ExtPidCard(it) }
+                    Spacer(Modifier.height(24.dp))
                 }
             }
-
-            if (mode != LinkMode.Disconnected) {
-                DtcPanel(
-                    codes = dtcCodes,
-                    error = dtcError,
-                    busy = dtcBusy,
-                    onRefresh = { refreshDtcs() },
-                    onClear = { confirmClearDtc = true },
-                )
-            }
-
-            if (showDiag) {
-                DiagPanel(
-                    lines = diagLines,
-                    fileHint = activeFile,
-                    onClear = {
-                        diag.clear()
-                        refreshDiag()
-                    },
-                    scrollState = diagScroll,
-                )
-            }
-            Spacer(Modifier.height(24.dp))
         }
     }
 }
 
 @Composable
-private fun InstantFuelCard(litersPer100: Double?) {
+private fun VehicleIdentityCard(identity: VehicleIdentity?) {
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("Zużycie chwilowe", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "z L/h i prędkości (≥5 km/h)",
-                    style = MaterialTheme.typography.bodySmall,
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "Pojazd",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            when {
+                identity == null -> Text(
+                    "Połącz ELM, aby odczytać VIN (Mode 09)",
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    litersPer100?.let { ((it * 10).toLong() / 10.0).toString() } ?: "—",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
+                identity.vin != null -> {
+                    identity.manufacturerHint?.let {
+                        Text(it, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                    }
+                    Text(
+                        "VIN ${identity.vin}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
+                else -> Text(
+                    identity.displayLine,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
                 )
-                Text("L/100km", style = MaterialTheme.typography.labelMedium)
             }
         }
     }
@@ -729,6 +898,107 @@ private fun ExtPidCard(reading: ExtPidReading) {
                 if (reading.pid.unit.isNotBlank()) {
                     Text(reading.pid.unit, style = MaterialTheme.typography.labelMedium)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SensorHitRow(
+    pid: ExtPidDefinition,
+    preview: ExtPidReading?,
+    alreadyActive: Boolean,
+    onAdd: () -> Unit,
+) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(pid.namePl, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "${pid.request} · ${pid.nameEn}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (preview != null) {
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        preview.displayValue,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    if (pid.unit.isNotBlank()) {
+                        Text(pid.unit, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+            if (alreadyActive) {
+                Text(
+                    "Dodano",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            } else {
+                OutlinedButton(onClick = onAdd) {
+                    Text("Dodaj")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActiveSensorCard(
+    reading: ExtPidReading,
+    onRemove: () -> Unit,
+) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(reading.pid.namePl, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "${reading.pid.request} · ${reading.pid.nameEn}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                reading.error?.let { err ->
+                    Text(
+                        err,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    reading.displayValue,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                if (reading.pid.unit.isNotBlank()) {
+                    Text(reading.pid.unit, style = MaterialTheme.typography.labelMedium)
+                }
+            }
+            TextButton(onClick = onRemove) {
+                Text("Usuń")
             }
         }
     }

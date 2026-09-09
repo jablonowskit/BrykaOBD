@@ -156,6 +156,9 @@ object ElmParser {
         }
     }
 
+    /** Hex payload bytes from ELM reply (spaced or continuous). */
+    fun hexBytes(response: String): List<Byte> = allHexBytes(response)
+
     private fun allHexBytes(response: String): List<Byte> {
         // Spaced frames: "41 05 3B". Continuous (ATS0 / many V-LINK clones): "41053B".
         val cleaned = response.uppercase()

@@ -32,6 +32,15 @@ object GaugePids {
         decode = { bytes -> bytes.getOrNull(0)?.toUByte()?.toInt()?.let { it - 40.0 } },
     )
 
+    /** Engine oil temperature — not on every ECU (NO DATA if unsupported). */
+    val oilTemp = ExtPids.mode01(
+        pid = 0x5C,
+        namePl = "Temp. oleju",
+        nameEn = "Oil temp",
+        unit = "°C",
+        decode = { bytes -> bytes.getOrNull(0)?.toUByte()?.toInt()?.let { it - 40.0 } },
+    )
+
     val throttle = ExtPids.mode01(
         pid = 0x11,
         namePl = "Przepustnica",
@@ -65,7 +74,27 @@ object GaugePids {
         },
     )
 
-    val pollList: List<ExtPidDefinition> = listOf(speed, rpm, coolant, throttle, voltage, fuelRate)
+    /**
+     * Odometer (SAE Mode 01 PID A6) — km, 0.1 km resolution.
+     * Not supported on every older diesel ECU (NO DATA then).
+     */
+    val odometer = ExtPids.mode01(
+        pid = 0xA6,
+        namePl = "Przebieg",
+        nameEn = "Odometer",
+        unit = "km",
+        decode = { bytes ->
+            if (bytes.size < 4) return@mode01 null
+            val a = bytes[0].toUByte().toLong()
+            val b = bytes[1].toUByte().toLong()
+            val c = bytes[2].toUByte().toLong()
+            val d = bytes[3].toUByte().toLong()
+            (a * 16777216L + b * 65536L + c * 256L + d) / 10.0
+        },
+    )
+
+    val pollList: List<ExtPidDefinition> =
+        listOf(speed, rpm, coolant, oilTemp, throttle, voltage, fuelRate, odometer)
 
     /**
      * Instant L/100km from fuel rate and speed (null if speed too low or missing data).
@@ -75,6 +104,21 @@ object GaugePids {
         if (speedKmh < 5.0) return null
         return fuelRateLh / speedKmh * 100.0
     }
+
+    /**
+     * Engine oil pressure — not in SAE Mode 01; GM community DID `221470` (byte A = psi → bar).
+     * Many diesels only have a switch → NO DATA.
+     */
+    val oilPressure = ExtPids.mode22(
+        did = 0x1470,
+        namePl = "Ciśnienie oleju",
+        nameEn = "Oil pressure",
+        unit = "bar",
+        decode = { bytes ->
+            val a = bytes.getOrNull(0)?.toUByte()?.toInt() ?: return@mode22 null
+            a / 14.503774
+        },
+    )
 }
 
 /**

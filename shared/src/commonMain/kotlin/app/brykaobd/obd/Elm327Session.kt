@@ -135,6 +135,29 @@ class Elm327Session(
         return results
     }
 
+    /**
+     * Mode 09 VIN (`0902`) over functional addressing — first step of automatic vehicle ID.
+     */
+    suspend fun readVehicleIdentity(): VehicleIdentity {
+        ensureInit()
+        setAddress(ObdAddress.Functional)
+        transport.write("0902\r")
+        val reply = transport.readUntilPrompt()
+        val err = ElmParser.isErrorResponse(reply)
+        if (err != null) {
+            diag.warn("VEHICLE", "VIN 0902 → $err")
+            return VehicleIdentity(error = err)
+        }
+        val vin = VehicleIdentityParser.parseVin(reply)
+        if (vin == null) {
+            diag.warn("VEHICLE", "VIN 0902 → PARSE (raw logged as RX)")
+            return VehicleIdentity(error = "PARSE")
+        }
+        val hint = VehicleIdentityParser.manufacturerHint(vin)
+        diag.info("VEHICLE", "VIN $vin" + (hint?.let { " ($it)" } ?: ""))
+        return VehicleIdentity(vin = vin, manufacturerHint = hint)
+    }
+
     suspend fun readStoredDtcs(): DtcReadResult {
         ensureInit()
         setAddress(ObdAddress.Functional)

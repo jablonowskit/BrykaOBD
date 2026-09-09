@@ -52,3 +52,9 @@ kotlin {
         }
     }
 }
+
+compose.desktop {
+    application {
+        mainClass = "app.brykaobd.MainKt"
+    }
+}

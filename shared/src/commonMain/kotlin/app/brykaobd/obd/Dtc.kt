@@ -18,22 +18,15 @@ data class DtcReadResult(
 }
 
 object DtcCatalog {
-    private val pl = mapOf(
-        "P0300" to "Wypadanie zapłonu (losowe)",
-        "P0301" to "Wypadanie zapłonu — cylinder 1",
-        "P0302" to "Wypadanie zapłonu — cylinder 2",
-        "P0303" to "Wypadanie zapłonu — cylinder 3",
-        "P0304" to "Wypadanie zapłonu — cylinder 4",
-        "P0420" to "Sprawność katalizatora poniżej progu (bank 1)",
-        "P0171" to "Układ paliwowy zbyt ubogi (bank 1)",
-        "P0172" to "Układ paliwowy zbyt bogaty (bank 1)",
-        "P0401" to "Niewystarczający przepływ EGR",
-        "P0403" to "Obwód zaworu EGR / sterowanie",
-        "P0405" to "Czujnik pozycji EGR A — niski sygnał",
-        "P0113" to "Czujnik IAT — sygnał za wysoki",
-        "P0128" to "Termostat chłodzenia — temperatura poniżej regulacji",
-        "P0700" to "Usterka skrzyni (żądanie MIL)",
-    )
+    /**
+     * PL curated first, then broad EN catalog from [data/dtc_codes.psv].
+     */
+    fun descriptionPl(code: String): String {
+        val key = code.uppercase()
+        return DtcCatalogPl.map[key]
+            ?: DtcCatalogEn.map[key]
+            ?: "Zapisany kod usterki"
+    }
 
-    fun descriptionPl(code: String): String = pl[code.uppercase()] ?: "Zapisany kod usterki"
+    val size: Int get() = DtcCatalogPl.map.size + DtcCatalogEn.map.size
 }

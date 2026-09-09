@@ -26,9 +26,19 @@ Before the first Mode 01 PID read, the session MUST send the AT init sequence `A
 - WHEN `initialize()` or the first `readPid` runs
 - THEN all six AT commands are written in order and the session is marked initialized
 
+### Requirement: Vehicle identity after connect
+
+After ELM init on Demo or live connect, the system SHALL request Mode 09 PID 02 (`0902`), parse a 17-character VIN when present, and derive a light manufacturer hint from WMI. The **Sesja** tab MUST show the result (or an explicit error such as `NO DATA` / `PARSE`). Missing VIN MUST NOT block gauges, DTC, or discovery.
+
+#### Scenario: Demo VIN
+
+- GIVEN Demo PID transport answering `0902` with a Chevrolet WMI VIN
+- WHEN the session reads vehicle identity
+- THEN the UI shows Chevrolet and the 17-character VIN
+
 ### Requirement: Universal Mode 01 dashboard PIDs
 
-The live **Zegary** tab SHALL poll Mode 01 metrics for driving context: speed (`0D`), RPM (`0C`), coolant (`05`), throttle (`11`), control module voltage (`42`), and fuel rate (`5E`) when supported. The session MUST still support the classic `StandardPids.dashboard` list (including engine load `04` and intake `0F`) for compatibility and tests. Manufacturer-specific DPF DIDs are covered by the `dpf` capability (Mode 22 + optional Mode 01 `7C`).
+The live **Zegary** tab SHALL poll Mode 01 metrics for driving context: speed (`0D`), RPM (`0C`), coolant (`05`), oil temperature (`5C`) when supported, throttle (`11`), control module voltage (`42`), fuel rate (`5E`) when supported, and odometer (`A6`) when supported. The session MUST still support the classic `StandardPids.dashboard` list (including engine load `04` and intake `0F`) for compatibility and tests. Manufacturer-specific DPF DIDs are covered by the `dpf` capability (Mode 22 + optional Mode 01 `7C`).
 
 #### Scenario: RPM decode
 

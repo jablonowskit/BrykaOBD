@@ -26,13 +26,13 @@ Write-Host "    Logi diag: $env:USERPROFILE\.brykaobd\diag\"
 Write-Host "    ELM: Połącz ELM → port COM (domyslnie 38400 baud)"
 Write-Host ""
 
-$argsList = @("--no-daemon", ":composeApp:run")
-if (-not $NoDaemon) {
-    # Default: allow daemon for faster relaunch; -NoDaemon forces clean CI-like run
-    $argsList = @(":composeApp:run")
+# Compile first so run never hits ClassNotFoundException on a wiped/locked Kotlin cache.
+$argsList = @(":composeApp:compileKotlinDesktop", ":composeApp:run")
+if ($NoDaemon) {
+    $argsList = @("--no-daemon") + $argsList
 }
 
 & $gradlew @argsList
 if ($LASTEXITCODE -ne 0) {
-    throw "gradlew :composeApp:run failed (exit $LASTEXITCODE)"
+    throw "gradlew desktop run failed (exit $LASTEXITCODE)"
 }
