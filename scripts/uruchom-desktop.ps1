@@ -4,6 +4,7 @@
   Uruchamia BrykaOBD desktop (Compose Multiplatform / Windows).
 
 .EXAMPLE
+  .\scripts\uruchom-desktop.cmd
   powershell -ExecutionPolicy Bypass -File scripts/uruchom-desktop.ps1
 #>
 [CmdletBinding()]

@@ -58,6 +58,6 @@ Przy każdym pushu / PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
 ## Status
 
 Android Classic SPP + DTC + logi plików. **Desktop Windows: Połącz ELM przez COM** (jSerialComm, baud 38400).  
-Uruchomienie: `powershell -ExecutionPolicy Bypass -File scripts/uruchom-desktop.ps1`  
+Uruchomienie: `.\scripts\uruchom-desktop.cmd`  
 Laptop w aucie: sparuj dongle → COMx → Połącz ELM. Logi: `%USERPROFILE%\.brykaobd\diag\`.
 
