@@ -99,6 +99,7 @@ fun ObdDashboardScreen(
     var activeReadings by remember { mutableStateOf<List<ExtPidReading>>(emptyList()) }
     var previewReadings by remember { mutableStateOf<Map<String, ExtPidReading>>(emptyMap()) }
     var instantL100 by remember { mutableStateOf<Double?>(null) }
+    var instantL100Estimated by remember { mutableStateOf(false) }
     var oilPressureBar by remember { mutableStateOf<Double?>(null) }
     var vehicleIdentity by remember { mutableStateOf<VehicleIdentity?>(null) }
     var discoveryHits by remember { mutableStateOf<List<DiscoveryResult>>(emptyList()) }
@@ -212,7 +213,10 @@ fun ObdDashboardScreen(
                             gaugeReadings = next
                             val rate = next.firstOrNull { it.pid.request == GaugePids.fuelRate.request }?.value
                             val spd = next.firstOrNull { it.pid.request == GaugePids.speed.request }?.value
-                            instantL100 = GaugePids.instantLitersPer100km(rate, spd)
+                            val maf = next.firstOrNull { it.pid.request == GaugePids.mafRate.request }?.value
+                            val effectiveRate = rate ?: GaugePids.estimatedFuelRateLhFromMaf(maf)
+                            instantL100Estimated = rate == null
+                            instantL100 = GaugePids.instantLitersPer100km(effectiveRate, spd)
                             val ecmExtras = ioMutex.withLock {
                                 session.readExtList(
                                     listOf(DpfPids.sootLoad, GaugePids.oilPressure),
@@ -654,6 +658,7 @@ fun ObdDashboardScreen(
                 CarDashboardCluster(
                     readings = gaugeReadings,
                     instantL100 = instantL100,
+                    instantL100Estimated = instantL100Estimated,
                     sootLoad = dpfReadings.firstOrNull { it.pid.request == DpfPids.sootLoad.request }?.value,
                     oilPressureBar = oilPressureBar,
                     dtcWarn = mode != LinkMode.Disconnected && (dtcCodes.isNotEmpty() || dtcError != null),

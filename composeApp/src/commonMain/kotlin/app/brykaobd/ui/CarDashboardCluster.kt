@@ -53,6 +53,7 @@ private val ValueWhite = Color(0xFFF2F5F8)
 fun CarDashboardCluster(
     readings: List<ExtPidReading>,
     instantL100: Double?,
+    instantL100Estimated: Boolean = false,
     sootLoad: Double? = null,
     oilPressureBar: Double? = null,
     dtcWarn: Boolean = false,
@@ -67,8 +68,12 @@ fun CarDashboardCluster(
     val coolant = reading(GaugePids.coolant.request)?.value
     val oilTemp = reading(GaugePids.oilTemp.request)?.value
     val throttle = reading(GaugePids.throttle.request)?.value
+    val accelPedal = reading(GaugePids.accelPedal.request)?.value
     val voltage = reading(GaugePids.voltage.request)?.value
-    val fuelRate = reading(GaugePids.fuelRate.request)?.value
+    val fuelRateRaw = reading(GaugePids.fuelRate.request)?.value
+    val mafRate = reading(GaugePids.mafRate.request)?.value
+    val fuelRateEstimated = fuelRateRaw == null
+    val fuelRate = fuelRateRaw ?: GaugePids.estimatedFuelRateLhFromMaf(mafRate)
     val odometer = reading(GaugePids.odometer.request)?.value
 
     Column(
@@ -203,8 +208,19 @@ fun CarDashboardCluster(
                 Modifier.weight(1f),
                 valueColor = battColor(voltage),
             )
-            Pill("FUEL", formatNum(fuelRate, 1), "L/h", Modifier.weight(1f))
-            Pill("INST", formatNum(instantL100, 1), "L/100", Modifier.weight(1f))
+            Pill(
+                "FUEL",
+                (if (fuelRateEstimated && fuelRate != null) "~" else "") + formatNum(fuelRate, 1),
+                "L/h",
+                Modifier.weight(1f),
+            )
+            Pill(
+                "INST",
+                (if (instantL100Estimated && instantL100 != null) "~" else "") + formatNum(instantL100, 1),
+                "L/100",
+                Modifier.weight(1f),
+            )
+            Pill("GAS", formatNum(accelPedal, 0), "%", Modifier.weight(1f))
         }
     }
 }
@@ -262,6 +278,15 @@ private fun MotoSpeedo(
                 )
             }
         }
+        Text(
+            "RPM",
+            color = Muted,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 4.dp, top = 2.dp),
+        )
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(top = 18.dp),
@@ -309,14 +334,14 @@ private fun MiniBar(
     Column(
         modifier
             .background(Face, RoundedCornerShape(8.dp))
-            .padding(horizontal = 6.dp, vertical = 5.dp),
+            .padding(horizontal = 6.dp, vertical = 6.dp),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, color = Muted, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
+            Text(label, color = Muted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             Text(
                 text,
                 color = if (value == null) Muted else barColor,
-                fontSize = 11.sp,
+                fontSize = 16.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
             )
@@ -363,18 +388,18 @@ private fun Pill(
     Column(
         modifier
             .background(Face, RoundedCornerShape(8.dp))
-            .padding(horizontal = 6.dp, vertical = 6.dp),
+            .padding(horizontal = 6.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(title, color = Muted, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
+        Text(title, color = Muted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         Text(
             value,
             color = if (value == "—") Muted else valueColor,
-            fontSize = 16.sp,
+            fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace,
         )
-        Text(unit, color = Muted, fontSize = 9.sp)
+        Text(unit, color = Muted, fontSize = 12.sp)
     }
 }
 
