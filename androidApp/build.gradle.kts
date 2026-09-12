@@ -25,11 +25,14 @@ android {
             // build then fails with a signature mismatch. CI provides a stable keystore
             // via ANDROID_DEBUG_KEYSTORE_PATH (restored from a secret); local dev falls
             // back to the normal per-machine debug keystore untouched.
-            System.getenv("ANDROID_DEBUG_KEYSTORE_PATH")?.let { path ->
+            fun envOrDefault(name: String, default: String): String =
+                System.getenv(name)?.takeIf { it.isNotBlank() } ?: default
+
+            System.getenv("ANDROID_DEBUG_KEYSTORE_PATH")?.takeIf { it.isNotBlank() }?.let { path ->
                 storeFile = file(path)
-                storePassword = System.getenv("ANDROID_DEBUG_KEYSTORE_PASSWORD") ?: "android"
-                keyAlias = System.getenv("ANDROID_DEBUG_KEY_ALIAS") ?: "brykaobddebugkey"
-                keyPassword = System.getenv("ANDROID_DEBUG_KEY_PASSWORD") ?: "android"
+                storePassword = envOrDefault("ANDROID_DEBUG_KEYSTORE_PASSWORD", "android")
+                keyAlias = envOrDefault("ANDROID_DEBUG_KEY_ALIAS", "brykaobddebugkey")
+                keyPassword = envOrDefault("ANDROID_DEBUG_KEY_PASSWORD", "android")
             }
         }
     }
