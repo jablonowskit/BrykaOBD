@@ -15,6 +15,7 @@ fun App(
     bluetooth: BluetoothElmFacade? = null,
     diagArchive: DiagArchive? = null,
     diagShare: DiagShareFacade? = null,
+    onKeepScreenOnChanged: ((Boolean) -> Unit)? = null,
 ) {
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
@@ -22,6 +23,7 @@ fun App(
                 bluetooth = bluetooth,
                 diagArchive = diagArchive,
                 diagShare = diagShare,
+                onKeepScreenOnChanged = onKeepScreenOnChanged,
             )
         }
     }

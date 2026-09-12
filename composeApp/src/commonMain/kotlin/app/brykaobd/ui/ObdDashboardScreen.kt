@@ -22,11 +22,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -85,7 +87,10 @@ fun ObdDashboardScreen(
     bluetooth: BluetoothElmFacade? = null,
     diagArchive: DiagArchive? = null,
     diagShare: DiagShareFacade? = null,
+    onKeepScreenOnChanged: ((Boolean) -> Unit)? = null,
 ) {
+    var keepScreenOn by remember { mutableStateOf(false) }
+    LaunchedEffect(keepScreenOn) { onKeepScreenOnChanged?.invoke(keepScreenOn) }
     var mode by remember { mutableStateOf(LinkMode.Disconnected) }
     var dashTab by remember { mutableStateOf(DashTab.Session) }
     var gaugeReadings by remember {
@@ -698,6 +703,19 @@ fun ObdDashboardScreen(
                                         Text("Rozłącz")
                                     }
                                 }
+                            }
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    "Nie wygaszaj ekranu",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Switch(
+                                    checked = keepScreenOn,
+                                    onCheckedChange = { keepScreenOn = it },
+                                )
                             }
                             if (diagArchive != null) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
