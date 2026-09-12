@@ -35,7 +35,7 @@ jobs:
         env:
           ANDROID_DEBUG_KEYSTORE_B64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_B64 }}
         run: |
-          echo "$ANDROID_DEBUG_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/brykaobd-debug.keystore"
+          printf '%s' "$ANDROID_DEBUG_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/brykaobd-debug.keystore"
           echo "ANDROID_DEBUG_KEYSTORE_PATH=$RUNNER_TEMP/brykaobd-debug.keystore" >> "$GITHUB_ENV"
       - name: Build Android debug APK
         env:
