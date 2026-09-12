@@ -30,7 +30,18 @@ jobs:
           java-version: "25"
       - uses: android-actions/setup-android@v4
       - uses: gradle/actions/setup-gradle@v5
+      - name: Restore stable debug keystore
+        if: env.ANDROID_DEBUG_KEYSTORE_B64 != ''
+        env:
+          ANDROID_DEBUG_KEYSTORE_B64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_B64 }}
+        run: |
+          echo "$ANDROID_DEBUG_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/brykaobd-debug.keystore"
+          echo "ANDROID_DEBUG_KEYSTORE_PATH=$RUNNER_TEMP/brykaobd-debug.keystore" >> "$GITHUB_ENV"
       - name: Build Android debug APK
+        env:
+          ANDROID_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
+          ANDROID_DEBUG_KEY_ALIAS: ${{ secrets.ANDROID_DEBUG_KEY_ALIAS }}
+          ANDROID_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon :androidApp:assembleDebug
